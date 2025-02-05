@@ -32,7 +32,6 @@ PLYR_H_INIT EQU         08          ; Players initial Height
 PLYR_DFLT_V EQU         00          ; Default Player Velocity
 PLYR_JUMP_V EQU        -20          ; Player Jump Velocity
 PLYR_DFLT_G EQU         01          ; Player Default Gravity
-PLYR_HEALTH EQU         100         ; Player Health
 
 GND_TRUE    EQU         01          ; Player on Ground True
 GND_FALSE   EQU         00          ; Player on Ground False
@@ -94,6 +93,11 @@ INITIALISE:
     ;---------------------------
     DIVU    #02,        D1          ; divide by 2 for center on Y Axis
     MOVE.L  D1,         PLAYER_Y    ; Players Y Position
+
+    ; Initialise Player Health to 100
+    EOR.L   D1,         D1          - Ammended CLR
+    MOVE.L  #100,       D1          ; Initialises health to 100
+    MOVE.L  D1,         PLAYER_HEALTH
 
     ; Initialise Player Score
     EOR.L   D1, D1                  - Ammended CLR
@@ -186,7 +190,7 @@ PROCESS_INPUT:
 
 *-----------------------------------------------------------
 * Subroutine    : Update
-* Description   : Main update loop update Player and Enemies
+* Description   : Main update loop update Player and Enemies                ;;;;;TODO -> Play with velocities
 *-----------------------------------------------------------
 UPDATE:
     ; Update the Players Positon based on Velocity and Gravity
@@ -265,7 +269,7 @@ DRAW_PLYR_DATA:
     MOVE.W  #$0900,     D1          ; Col 09, Row 01
     TRAP    #15                     ; Trap (Perform action)
     MOVE.B  #03,        D0          ; Display number at D1.L
-    MOVE.L  PLYR_HEALTH,D1          ; Move Health to D1.L
+    MOVE.L  PLAYER_HEALTH,D1        ; Move Health to D1.L
     TRAP    #15                     ; Trap (Perform action)
     
     ; Player Score Message
@@ -465,6 +469,26 @@ PERFORM_JUMP:
     RTS                             ; Return to subroutine
 JUMP_DONE:
     RTS                             ; Return to subroutine
+    
+*-----------------------------------------------------------
+* Subroutine    : Damage
+* Description   : Deduct damage from player
+;Struggled for a while with defining my own ENMY_DMG 
+;Constant and getting it to work on the health, when I moved
+;it to D2 like MOVE.L   ENMY_DMG, D2, D2 was FFFFF and health
+;was incremented UP by 1 each time... Until I browsed this
+;starter more for hints. I noticed how #POINTS increments
+;the score. So, I needed to define that it was the LITERAL
+;value in ENMY_DMG to subtract.
+*----------------------------------------------------------- 
+DAMAGE:
+    EOR.L   D1, D1                  ;Clear contents of D1
+    MOVE.L  PLAYER_HEALTH,  D1
+    SUB.L   #ENMY_DMG,    D1        
+    MOVE.L  D1, PLAYER_HEALTH
+    ;TO DO NEXT ---> BEQ, WHEN HEALTH IS ZERO, Z FLAG GOES TO 1
+    ;BEQ TO GAME OVER???
+    RTS
 
 *-----------------------------------------------------------
 * Subroutine    : Idle
@@ -604,14 +628,14 @@ PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y:     ; Less than or Equal ?
     BGE     COLLISION               ; Collision !
     BRA     COLLISION_CHECK_DONE    ; If not no collision
 COLLISION_CHECK_DONE:               ; No Collision Update points
-    ADD.L   #POINTS,    D1          ; Move points upgrade to D1
+    ADD.L   #POINTS,    D1          ; Move points upgrade to D1         
     ADD.L   PLAYER_SCORE,D1         ; Add to current player score
     MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
     RTS                             ; Return to subroutine
 
 COLLISION:
     BSR     PLAY_OPPS               ; Play Opps Wav
-    ;BSR     TAKE_DAMAGE             ; Deduct damage from health
+    BSR     DAMAGE                  ; Deduct damage from health
     MOVE.L  #00, PLAYER_SCORE       ; Reset Player Score
     BRA     RESET_ENEMY_POSITION    ; Sets next Enemeies position back to 0, simulating a game restart for this life.
     
@@ -651,7 +675,7 @@ Y_MSG           DC.B    'Y:', 0             ; Y Position Message
 V_MSG           DC.B    'V:', 0             ; Velocity Position Message
 G_MSG           DC.B    'G:', 0             ; Gravity Position Message
 GND_MSG         DC.B    'GND:', 0           ; On Ground Position Message
-HEALTH_MSG      DC.B    'HEALTH:',0         ; Health Message
+HEALTH_MSG      DC.B    'HP:',0             ; Health Message
 
 EXIT_MSG        DC.B    'Exiting....', 0    ; Exit Message
 
@@ -682,11 +706,11 @@ CURRENT_KEY     DS.L    01  ; Reserve Space for Current Key Pressed
 PLAYER_X        DS.L    01  ; Reserve Space for Player X Position
 PLAYER_Y        DS.L    01  ; Reserve Space for Player Y Position
 PLAYER_SCORE    DS.L    01  ; Reserve Space for Player Score
-
+PLAYER_HEALTH   DS.L    01  ; Reserve Space for Player Health
 PLYR_VELOCITY   DS.L    01  ; Reserve Space for Player Velocity
 PLYR_GRAVITY    DS.L    01  ; Reserve Space for Player Gravity
 PLYR_ON_GND     DS.L    01  ; Reserve Space for Player on Ground
-
+   
 ENEMY_X         DS.L    01  ; Reserve Space for Enemy X Position
 ENEMY_Y         DS.L    01  ; Reserve Space for Enemy Y Position
 
@@ -702,6 +726,8 @@ RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
 
     END    START        ; last line of source
+
+
 
 *~Font name~Courier New~
 *~Font size~10~
