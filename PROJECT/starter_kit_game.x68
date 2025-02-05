@@ -32,6 +32,7 @@ PLYR_H_INIT EQU         08          ; Players initial Height
 PLYR_DFLT_V EQU         00          ; Default Player Velocity
 PLYR_JUMP_V EQU        -20          ; Player Jump Velocity
 PLYR_DFLT_G EQU         01          ; Player Default Gravity
+PLYR_HEALTH EQU         100         ; Player Health
 
 GND_TRUE    EQU         01          ; Player on Ground True
 GND_FALSE   EQU         00          ; Player on Ground False
@@ -42,6 +43,7 @@ OPPS_INDEX  EQU         02          ; Player Opps Sound Index
 
 ENMY_W_INIT EQU         08          ; Enemy initial Width
 ENMY_H_INIT EQU         08          ; Enemy initial Height
+ENMY_DMG    EQU         10          ; Enemy damage amount 
 
 *-----------------------------------------------------------
 * Section       : Game Stats
@@ -116,7 +118,7 @@ INITIALISE:
     MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
     MOVE.L  D1,         ENEMY_X     ; Enemy X Position
 
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR
     MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
     ;---------------------------
     ;Left shift?
@@ -248,8 +250,24 @@ DRAW:
 * Description   : Draw Player X, Y, Velocity, Gravity and OnGround
 *-----------------------------------------------------------
 DRAW_PLYR_DATA:
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR
+    
+    ; Player Health Message
+    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+    MOVE.W  #$0200,     D1          ; Col 02, Row 00 (Top row)
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     HEALTH_MSG,  A1         ; Health Message
+    MOVE    #13,        D0          ; No Line feed
+    TRAP    #15                     ; Trap (Perform action)
 
+    ; Player Health Value
+    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+    MOVE.W  #$0900,     D1          ; Col 09, Row 01
+    TRAP    #15                     ; Trap (Perform action)
+    MOVE.B  #03,        D0          ; Display number at D1.L
+    MOVE.L  PLYR_HEALTH,D1          ; Move Health to D1.L
+    TRAP    #15                     ; Trap (Perform action)
+    
     ; Player Score Message
     MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
     MOVE.W  #$0201,     D1          ; Col 02, Row 01
@@ -420,7 +438,7 @@ SET_ON_GROUND:
     ;---------------------------
     DIVU    #02,        D1          ; divide by 2 for center on Y Axis
     MOVE.L  D1,         PLAYER_Y    ; Reset the Player Y Position
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR  
     MOVE.L  #00,        D1          ; Player Velocity
     MOVE.L  D1,         PLYR_VELOCITY ; Set Player Velocity
     MOVE.L  #GND_TRUE,  PLYR_ON_GND ; Player is on Ground
@@ -593,7 +611,10 @@ COLLISION_CHECK_DONE:               ; No Collision Update points
 
 COLLISION:
     BSR     PLAY_OPPS               ; Play Opps Wav
+    ;BSR     TAKE_DAMAGE             ; Deduct damage from health
     MOVE.L  #00, PLAYER_SCORE       ; Reset Player Score
+    BRA     RESET_ENEMY_POSITION    ; Sets next Enemeies position back to 0, simulating a game restart for this life.
+    
     RTS                             ; Return to subroutine
 
 *-----------------------------------------------------------
@@ -630,6 +651,7 @@ Y_MSG           DC.B    'Y:', 0             ; Y Position Message
 V_MSG           DC.B    'V:', 0             ; Velocity Position Message
 G_MSG           DC.B    'G:', 0             ; Gravity Position Message
 GND_MSG         DC.B    'GND:', 0           ; On Ground Position Message
+HEALTH_MSG      DC.B    'HEALTH:',0         ; Health Message
 
 EXIT_MSG        DC.B    'Exiting....', 0    ; Exit Message
 
@@ -680,6 +702,7 @@ RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
 
     END    START        ; last line of source
+
 *~Font name~Courier New~
 *~Font size~10~
 *~Tab type~1~
