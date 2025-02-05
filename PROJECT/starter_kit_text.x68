@@ -50,7 +50,7 @@ WELCOME:
     LEA     WELCOME_MSG,A1  ;ASSIGN MESSAGE TO ADDRESS REGISTER A1
     MOVE.B  #14,D0          ;MOVE LITERAL 14 TO DO
     TRAP    #15             ;TRAP AND INTERPRET VALUE IN D0
-    BSR     EN             DL            ;BRANCH TO ENDL SUBROUTINE
+    BSR     ENDL            ;BRANCH TO ENDL SUBROUTINE
     RTS                     ;RETURN FROM WELCOME: SUBROUTINE
 
 *-------------------------------------------------------
@@ -177,7 +177,7 @@ COLLISION_HIT:
     RTS                     ;RETURN FROM COLLISION_HIT: SUBROUTINE
     
 COLLISION_MISS:
-    MISS_MSG,A1				;ASSIGN MESSAGE TO ADDRESS REGISTER A1
+    LEA     MISS_MSG,A1		;ASSIGN MESSAGE TO ADDRESS REGISTER A1
     MOVE    #14,D0          ;MOVE LITERAL 14 TO DO
     TRAP    #15             ;TRAP AND INTERPRET VALUE IN D0
     RTS                     ;RETURN FROM COLLISION_MISS: SUBROUTINE
@@ -270,3 +270,7 @@ HEALTH:         DS.W    1   ;PLAYERS HEALTH
 SCORE:          DS.W    1   ;RESERVE SPACE FOR SCORE
 
     END START
+*~Font name~Courier New~
+*~Font size~10~
+*~Tab type~1~
+*~Tab size~4~
