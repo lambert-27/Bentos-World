@@ -77,28 +77,34 @@ INITIALISE:
     MOVE.W  D1,         SCREEN_W    ; place screen width in memory location
 
     ; Place the Player at the center of the screen
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR (EOR = inverter) So, using D1 as the operand on itself flips the bits that are 1 to 0
     MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
+    ;---------------------------
+    ;Left shift?
+    ;---------------------------
     DIVU    #02,        D1          ; divide by 2 for center on X Axis
     MOVE.L  D1,         PLAYER_X    ; Players X Position
 
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR
     MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+    ;---------------------------
+    ;Left Shift?
+    ;---------------------------
     DIVU    #02,        D1          ; divide by 2 for center on Y Axis
     MOVE.L  D1,         PLAYER_Y    ; Players Y Position
 
     ; Initialise Player Score
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
-    MOVE.L  #00,        D1          ; Init Score
+    EOR.L   D1, D1                  - Ammended CLR
+    MOVE.L  #00,        D1          ; Init Score 
     MOVE.L  D1,         PLAYER_SCORE
 
     ; Initialise Player Velocity
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR
     MOVE.B  #PLYR_DFLT_V,D1         ; Init Player Velocity
     MOVE.L  D1,         PLYR_VELOCITY
 
     ; Initialise Player Gravity
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR
     MOVE.L  #PLYR_DFLT_G,D1         ; Init Player Gravity
     MOVE.L  D1,         PLYR_GRAVITY
 
@@ -106,12 +112,15 @@ INITIALISE:
     MOVE.L  #GND_TRUE,  PLYR_ON_GND ; Init Player on Ground
 
     ; Initial Position for Enemy
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR
     MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
     MOVE.L  D1,         ENEMY_X     ; Enemy X Position
 
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
     MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+    ;---------------------------
+    ;Left shift?
+    ;---------------------------
     DIVU    #02,        D1          ; divide by 2 for center on Y Axis
     MOVE.L  D1,         ENEMY_Y     ; Enemy Y Position
 
@@ -148,7 +157,7 @@ GAMELOOP:
 *-----------------------------------------------------------
 INPUT:
     ; Process Input
-    CLR.L   D1                      ; Clear Data Register
+    EOR.L   D1, D1                  ; Clear Data Register via an XOR operation
     MOVE.B  #TC_KEYCODE,D0          ; Listen for Keys
     TRAP    #15                     ; Trap (Perform action)
     MOVE.B  D1,         D2          ; Move last key D1 to D2
@@ -179,7 +188,7 @@ PROCESS_INPUT:
 *-----------------------------------------------------------
 UPDATE:
     ; Update the Players Positon based on Velocity and Gravity
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR
     MOVE.L  PLYR_VELOCITY, D1       ; Fetch Player Velocity
     MOVE.L  PLYR_GRAVITY, D2        ; Fetch Player Gravity
     ADD.L   D2,         D1          ; Add Gravity to Velocity
@@ -188,8 +197,8 @@ UPDATE:
     MOVE.L  D1,         PLAYER_Y    ; Update Players Y Position 
 
     ; Move the Enemy
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
-    CLR.L   D1                      ; Clear the contents of D0
+    EOR.L   D1, D1                  - Ammended CLR
+    EOR.L   D0, D0                  - Ammended CLR for D0 (Note, previous code cleared D1 register)
     MOVE.L  ENEMY_X,    D1          ; Move the Enemy X Position to D0
     CMP.L   #00,        D1
     BLE     RESET_ENEMY_POSITION    ; Reset Enemy if off Screen
@@ -210,7 +219,7 @@ MOVE_ENEMY:
 * Description   : Reset Enemy if to passes 0 to Right of Screen
 *-----------------------------------------------------------
 RESET_ENEMY_POSITION:
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR
     MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
     MOVE.L  D1,         ENEMY_X     ; Enemy X Position
     RTS
@@ -385,9 +394,12 @@ DRAW_PLYR_DATA:
 *-----------------------------------------------------------
 IS_PLAYER_ON_GND:
     ; Check if Player is on Ground
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
-    CLR.L   D2                      ; Clear contents of D2 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR
+    EOR.L   D2, D2                  - Ammended CLR
     MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+    ;---------------------------
+    ;Left shift?
+    ;---------------------------
     DIVU    #02,        D1          ; divide by 2 for center on Y Axis
     MOVE.L  PLAYER_Y,   D2          ; Player Y Position
     CMP     D1,         D2          ; Compare middle of Screen with Players Y Position 
@@ -401,8 +413,11 @@ IS_PLAYER_ON_GND:
 * Description   : Set the Player On Ground
 *-----------------------------------------------------------
 SET_ON_GROUND:
-    CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
+    EOR.L   D1, D1                  - Ammended CLR 
     MOVE.W  SCREEN_H,   D1          ; Place Screen width in D1
+    ;---------------------------
+    ;Left shift?
+    ;---------------------------
     DIVU    #02,        D1          ; divide by 2 for center on Y Axis
     MOVE.L  D1,         PLAYER_Y    ; Reset the Player Y Position
     CLR.L   D1                      ; Clear contents of D1 (XOR is faster)
@@ -542,8 +557,8 @@ DRAW_ENEMY:
 * PLAYER_H + PLAYER_Y >= ENEMY_Y
 *-----------------------------------------------------------
 CHECK_COLLISIONS:
-    CLR.L   D1                      ; Clear D1
-    CLR.L   D2                      ; Clear D2
+    EOR.L   D1, D1                      ; Clear D1 via XOR
+    EOR.L   D2, D2                      ; Clear D2 via XOR
 PLAYER_X_LTE_TO_ENEMY_X_PLUS_W:
     MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
     MOVE.L  ENEMY_X,    D2          ; Move Enemy X to D2
@@ -665,3 +680,7 @@ RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
 
     END    START        ; last line of source
+*~Font name~Courier New~
+*~Font size~10~
+*~Tab type~1~
+*~Tab size~4~
