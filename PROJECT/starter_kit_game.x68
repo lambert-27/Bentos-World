@@ -4,6 +4,10 @@
 * Date       : 05/02/2025
 * Description: Project Starter Kit
 *-----------------------------------------------------------
+;HAVE POINTS GO UP WHEN COLLECT A COIN
+;PLAY A COIN SOUND
+;WHEN ENOUGH COINS COLLECTED (100 POINTS) CUBE GETS BIGGER?
+;KEEPS GETTING BIGGER FOR RIDICULOUSNESS. 
     ORG    $1000
 START:                  ; first instruction of program
 
@@ -38,7 +42,7 @@ GND_FALSE   EQU         00          ; Player on Ground False
 
 RUN_INDEX   EQU         00          ; Player Run Sound Index  
 JMP_INDEX   EQU         01          ; Player Jump Sound Index  
-OPPS_INDEX  EQU         02          ; Player Opps Sound Index
+HIT_INDEX  EQU         02          ; Player Hit Sound Index
 
 ENMY_W_INIT EQU         08          ; Enemy initial Width
 ENMY_H_INIT EQU         08          ; Enemy initial Height
@@ -67,7 +71,7 @@ INITIALISE:
     ; Initialise Sounds
     BSR     RUN_LOAD                ; Load Run Sound into Memory
     BSR     JUMP_LOAD               ; Load Jump Sound into Memory
-    BSR     OPPS_LOAD               ; Load Opps (Collision) Sound into Memory
+    BSR     HIT_LOAD               ; Load Hit (Collision) Sound into Memory
 
     ; Screen Size
     MOVE.B  #TC_SCREEN, D0          ; access screen information
@@ -197,6 +201,7 @@ UPDATE:
     EOR.L   D1, D1                  - Ammended CLR
     MOVE.L  PLYR_VELOCITY, D1       ; Fetch Player Velocity
     MOVE.L  PLYR_GRAVITY, D2        ; Fetch Player Gravity
+    ADD.L   #01,        D2          ;Add 1 onto gravity so the block has a downforce
     ADD.L   D2,         D1          ; Add Gravity to Velocity
     MOVE.L  D1,         PLYR_VELOCITY ; Update Player Velocity
     ADD.L   PLAYER_Y,   D1          ; Add Velocity to Player
@@ -483,13 +488,15 @@ JUMP_DONE:
 *----------------------------------------------------------- 
 DAMAGE:
     EOR.L   D1, D1                  ;Clear contents of D1
-    MOVE.L  PLAYER_HEALTH,  D1
-    SUB.L   #ENMY_DMG,    D1        
-    MOVE.L  D1, PLAYER_HEALTH
-    ;TO DO NEXT ---> BEQ, WHEN HEALTH IS ZERO, Z FLAG GOES TO 1
-    ;BEQ TO GAME OVER???
-    RTS
+    MOVE.L  PLAYER_HEALTH,  D1      ;Move players health into D1 for an arithmetic operation
+    SUB.L   #ENMY_DMG,    D1        ;Subtract the constant ENMY_DMG from D1
+    MOVE.L  D1, PLAYER_HEALTH       ;Move the new health value to PLAYER_HEALTH
+    BEQ     EXIT                    ;Branch when Health hits 0 to the EXIT sub-routine
+    RTS                             ;Else if, return to sender
 
+DAMAGE_PAUSE:
+    
+    
 *-----------------------------------------------------------
 * Subroutine    : Idle
 * Description   : Perform a Idle
@@ -501,7 +508,7 @@ IDLE:
 *-----------------------------------------------------------
 * Subroutines   : Sound Load and Play
 * Description   : Initialise game sounds into memory 
-* Current Sounds are RUN, JUMP and Opps for Collision
+* Current Sounds are RUN, JUMP and Hit for Collision
 *-----------------------------------------------------------
 RUN_LOAD:
     LEA     RUN_WAV,    A1          ; Load Wav File into A1
@@ -529,15 +536,15 @@ PLAY_JUMP:
     TRAP    #15                     ; Trap (Perform action)
     RTS                             ; Return to subroutine
 
-OPPS_LOAD:
-    LEA     OPPS_WAV,   A1          ; Load Wav File into A1
-    MOVE    #OPPS_INDEX,D1          ; Assign it INDEX
+HIT_LOAD:
+    LEA     HIT_WAV,   A1          ; Load Wav File into A1
+    MOVE    #HIT_INDEX,D1          ; Assign it INDEX
     MOVE    #71,        D0          ; Load into memory
     TRAP    #15                     ; Trap (Perform action)
     RTS                             ; Return to subroutine
 
-PLAY_OPPS:
-    MOVE    #OPPS_INDEX,D1          ; Load Sound INDEX
+PLAY_HIT:
+    MOVE    #HIT_INDEX,D1          ; Load Sound INDEX
     MOVE    #72,        D0          ; Play Sound
     TRAP    #15                     ; Trap (Perform action)
     RTS                             ; Return to subroutine
@@ -634,12 +641,13 @@ COLLISION_CHECK_DONE:               ; No Collision Update points
     RTS                             ; Return to subroutine
 
 COLLISION:
-    BSR     PLAY_OPPS               ; Play Opps Wav
+    BSR     PLAY_HIT               ; Play Hit Wav
     BSR     DAMAGE                  ; Deduct damage from health
     MOVE.L  #00, PLAYER_SCORE       ; Reset Player Score
     BRA     RESET_ENEMY_POSITION    ; Sets next Enemeies position back to 0, simulating a game restart for this life.
     
     RTS                             ; Return to subroutine
+
 
 *-----------------------------------------------------------
 * Subroutine    : EXIT
@@ -648,7 +656,7 @@ COLLISION:
 EXIT:
     ; Show if Exiting is Running
     MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$4004,     D1          ; Col 40, Row 1
+    MOVE.W  #$4001,     D1          ; Col 40, Row 1
     TRAP    #15                     ; Trap (Perform action)
     LEA     EXIT_MSG,   A1          ; Exit
     MOVE    #13,        D0          ; No Line feed
@@ -710,6 +718,7 @@ PLAYER_HEALTH   DS.L    01  ; Reserve Space for Player Health
 PLYR_VELOCITY   DS.L    01  ; Reserve Space for Player Velocity
 PLYR_GRAVITY    DS.L    01  ; Reserve Space for Player Gravity
 PLYR_ON_GND     DS.L    01  ; Reserve Space for Player on Ground
+TAKING_DMG      DS.L    01  ; Reserve space for a Flag, to check when a player is taking damage so that the game can pause
    
 ENEMY_X         DS.L    01  ; Reserve Space for Enemy X Position
 ENEMY_Y         DS.L    01  ; Reserve Space for Enemy Y Position
@@ -723,9 +732,14 @@ ENEMY_Y         DS.L    01  ; Reserve Space for Enemy Y Position
 *-----------------------------------------------------------
 JUMP_WAV        DC.B    'jump.wav',0        ; Jump Sound
 RUN_WAV         DC.B    'run.wav',0         ; Run Sound
-OPPS_WAV        DC.B    'opps.wav',0        ; Collision Opps
+HIT_WAV        DC.B    'hit.wav',0        ; Collision Hit
 
     END    START        ; last line of source
+
+
+
+
+
 
 
 
