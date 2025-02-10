@@ -491,11 +491,12 @@ DAMAGE:
     MOVE.L  PLAYER_HEALTH,  D1      ;Move players health into D1 for an arithmetic operation
     SUB.L   #ENMY_DMG,    D1        ;Subtract the constant ENMY_DMG from D1
     MOVE.L  D1, PLAYER_HEALTH       ;Move the new health value to PLAYER_HEALTH
-    BEQ     EXIT                    ;Branch when Health hits 0 to the EXIT sub-routine
+    BEQ     DAMAGE_PAUSE            ;Branch when Health hits 0 to the EXIT sub-routine
     RTS                             ;Else if, return to sender
 
 DAMAGE_PAUSE:
-    
+    MOVE.L  #00,    ENEMY_X
+    RTS
     
 *-----------------------------------------------------------
 * Subroutine    : Idle
@@ -718,7 +719,6 @@ PLAYER_HEALTH   DS.L    01  ; Reserve Space for Player Health
 PLYR_VELOCITY   DS.L    01  ; Reserve Space for Player Velocity
 PLYR_GRAVITY    DS.L    01  ; Reserve Space for Player Gravity
 PLYR_ON_GND     DS.L    01  ; Reserve Space for Player on Ground
-TAKING_DMG      DS.L    01  ; Reserve space for a Flag, to check when a player is taking damage so that the game can pause
    
 ENEMY_X         DS.L    01  ; Reserve Space for Enemy X Position
 ENEMY_Y         DS.L    01  ; Reserve Space for Enemy Y Position
@@ -735,8 +735,6 @@ RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 HIT_WAV        DC.B    'hit.wav',0        ; Collision Hit
 
     END    START        ; last line of source
-
-
 
 
 
