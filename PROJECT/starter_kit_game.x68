@@ -159,7 +159,18 @@ GAMELOOP:
     BSR     IS_PLAYER_ON_GND        ; Check if player is on ground
     BSR     CHECK_COLLISIONS        ; Check for Collisions
     BSR     DRAW                    ; Draw the Scene
-    BRA     GAMELOOP                ; Loop back to GameLoop
+    BSR     DELTA                   ; Delay before next frame
+    BSR     GAMELOOP                ; ...we go again
+*-----------------------------------------------------------
+* Subroutine    : DELTA and DELAY
+* Description   : DELTA; establishes a timer
+*Delay, iterates through timer and decrements each pass until 0
+*-----------------------------------------------------------
+DELTA:
+    MOVE.L  #600, D0                ;Move 600 into D0, to begin loop for delay
+DELAY:
+    SUB.L   #1, D0                  ;Decrement by one, then compare
+    BNE     DELAY                   ;If Z  = 0, continue with loop
 
 *-----------------------------------------------------------
 * Subroutine    : Input
@@ -735,6 +746,7 @@ RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 HIT_WAV        DC.B    'hit.wav',0        ; Collision Hit
 
     END    START        ; last line of source
+
 
 
 
