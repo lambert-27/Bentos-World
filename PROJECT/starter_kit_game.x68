@@ -42,7 +42,7 @@ GND_FALSE   EQU         00          ; Player on Ground False
 
 RUN_INDEX   EQU         00          ; Player Run Sound Index  
 JMP_INDEX   EQU         01          ; Player Jump Sound Index  
-HIT_INDEX  EQU         02          ; Player Hit Sound Index
+HIT_INDEX   EQU          02          ; Player Hit Sound Index
 
 ENMY_W_INIT EQU         08          ; Enemy initial Width
 ENMY_H_INIT EQU         08          ; Enemy initial Height
@@ -154,12 +154,12 @@ GAME:
     BSR     PLAY_RUN                ; Play Run Wav
 GAMELOOP:
     ; Main Gameloop
+    BSR     DELTA                   ; Delay before next frame
     BSR     INPUT                   ; Check Keyboard Input
     BSR     UPDATE                  ; Update positions and points
     BSR     IS_PLAYER_ON_GND        ; Check if player is on ground
     BSR     CHECK_COLLISIONS        ; Check for Collisions
     BSR     DRAW                    ; Draw the Scene
-    BSR     DELTA                   ; Delay before next frame
     BSR     GAMELOOP                ; ...we go again
 *-----------------------------------------------------------
 * Subroutine    : DELTA and DELAY
@@ -227,7 +227,7 @@ UPDATE:
     BRA     MOVE_ENEMY              ; Move the Enemy
 
     RTS                             ; Return to subroutine  
-
+ 
 *-----------------------------------------------------------
 * Subroutine    : Move Enemy
 * Description   : Move Enemy Right to Left
@@ -304,86 +304,7 @@ DRAW_PLYR_DATA:
     MOVE.L  PLAYER_SCORE,D1         ; Move Score to D1.L
     TRAP    #15                     ; Trap (Perform action)
     
-    ; Player X Message
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0202,     D1          ; Col 02, Row 02
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     X_MSG,      A1          ; X Message
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
     
-    ; Player X
-    MOVE.B  #TC_CURSR_P, D0          ; Set Cursor Position
-    MOVE.W  #$0502,     D1          ; Col 05, Row 02
-    TRAP    #15                     ; Trap (Perform action)
-    MOVE.B  #03,        D0          ; Display number at D1.L
-    MOVE.L  PLAYER_X,   D1          ; Move X to D1.L
-    TRAP    #15                     ; Trap (Perform action)
-    
-    ; Player Y Message
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$1002,     D1          ; Col 10, Row 02
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     Y_MSG,      A1          ; Y Message
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
-    
-    ; Player Y
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$1202,     D1          ; Col 12, Row 02
-    TRAP    #15                     ; Trap (Perform action)
-    MOVE.B  #03,        D0          ; Display number at D1.L
-    MOVE.L  PLAYER_Y,   D1          ; Move X to D1.L
-    TRAP    #15                     ; Trap (Perform action) 
-
-    ; Player Velocity Message
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0203,     D1          ; Col 02, Row 03
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     V_MSG,      A1          ; Velocity Message
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
-    
-    ; Player Velocity
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0503,     D1          ; Col 05, Row 03
-    TRAP    #15                     ; Trap (Perform action)
-    MOVE.B  #03,        D0          ; Display number at D1.L
-    MOVE.L  PLYR_VELOCITY,D1        ; Move X to D1.L
-    TRAP    #15                     ; Trap (Perform action)
-    
-    ; Player Gravity Message
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$1003,     D1          ; Col 10, Row 03
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     G_MSG,      A1          ; G Message
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
-    
-    ; Player Gravity
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$1203,     D1          ; Col 12, Row 03
-    TRAP    #15                     ; Trap (Perform action)
-    MOVE.B  #03,        D0          ; Display number at D1.L
-    MOVE.L  PLYR_GRAVITY,D1         ; Move Gravity to D1.L
-    TRAP    #15                     ; Trap (Perform action)
-
-    ; Player On Ground Message
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0204,     D1          ; Col 10, Row 03
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     GND_MSG,    A1          ; On Ground Message
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
-    
-    ; Player On Ground
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0604,     D1          ; Col 06, Row 04
-    TRAP    #15                     ; Trap (Perform action)
-    MOVE.B  #03,        D0          ; Display number at D1.L
-    MOVE.L  PLYR_ON_GND,D1          ; Move Play on Ground ? to D1.L
-    TRAP    #15                     ; Trap (Perform action)
-
     ; Show Keys Pressed
     MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
     MOVE.W  #$2001,     D1          ; Col 20, Row 1
@@ -400,31 +321,6 @@ DRAW_PLYR_DATA:
     MOVE.B  #03,        D0          ; Display the contents of D1
     TRAP    #15                     ; Trap (Perform action)
 
-    ; Show if Update is Running
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0205,     D1          ; Col 02, Row 05
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     UPDATE_MSG, A1          ; Update
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
-
-    ; Show if Draw is Running
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0206,     D1          ; Col 02, Row 06
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     DRAW_MSG,   A1          ; Draw
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
-
-    ; Show if Idle is Running
-    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
-    MOVE.W  #$0207,     D1          ; Col 02, Row 07
-    TRAP    #15                     ; Trap (Perform action)
-    LEA     IDLE_MSG,   A1          ; Move Idle Message to A1
-    MOVE    #13,        D0          ; No Line feed
-    TRAP    #15                     ; Trap (Perform action)
-
-    RTS  
     
 *-----------------------------------------------------------
 * Subroutine    : Player is on Ground
@@ -501,17 +397,30 @@ DAMAGE:
     EOR.L   D1, D1                  ;Clear contents of D1
     MOVE.L  PLAYER_HEALTH,  D1      ;Move players health into D1 for an arithmetic operation
     SUB.L   #ENMY_DMG,    D1        ;Subtract the constant ENMY_DMG from D1
+    CMP.L   #00, D1                 ;Check if the player has ran out of health
+    BLE     GAME_OVER               ;If so, end game
     MOVE.L  D1, PLAYER_HEALTH       ;Move the new health value to PLAYER_HEALTH
-    BEQ     DAMAGE_PAUSE            ;Branch when Health hits 0 to the EXIT sub-routine
-    RTS                             ;Else if, return to sender
+    BRA     DAMAGE_PAUSE            ;Branch when Health hits 0 to the EXIT sub-routine
 
+    RTS                             ;Else if, return to sender
+*-----------------------------------------------------------
+* Subroutine    : Game Over
+* Description   : Ends game
+*----------------------------------------------------------- 
+GAME_OVER:
+    SIMHALT
+*-----------------------------------------------------------
+* Subroutine    : Damage Pause
+* Description   : Resets enemy pos when player gets hit, 
+* giving player some breathing room
+*----------------------------------------------------------- 
 DAMAGE_PAUSE:
     MOVE.L  #00,    ENEMY_X
     RTS
     
 *-----------------------------------------------------------
 * Subroutine    : Idle
-* Description   : Perform a Idle
+* Description   : Perform an Idle sound effect (run!)
 *----------------------------------------------------------- 
 IDLE:
     BSR     PLAY_RUN                ; Play Run Wav
@@ -647,11 +556,24 @@ PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y:     ; Less than or Equal ?
     BGE     COLLISION               ; Collision !
     BRA     COLLISION_CHECK_DONE    ; If not no collision
 COLLISION_CHECK_DONE:               ; No Collision Update points
+    MOVE.L  ENEMY_X, D1             
+    MOVE.L  PLAYER_X, D2
+    CMP.L   D1, D2                  ; Has the player succesfully jumped PASSED the 
+    BLE     END_COLLISION           ; enemy? If not, end check
+                                    ;If successfully got passed the enemy, increment score
     ADD.L   #POINTS,    D1          ; Move points upgrade to D1         
     ADD.L   PLAYER_SCORE,D1         ; Add to current player score
     MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
-    RTS                             ; Return to subroutine
 
+    BRA     END_COLLISION
+;Returns to the calling subroutine
+END_COLLISION:
+    RTS
+*-----------------------------------------------------------
+* Subroutine    : COLLISION
+* Description   : Deals damage, resets enemy position and reset
+* score
+*-----------------------------------------------------------
 COLLISION:
     BSR     PLAY_HIT               ; Play Hit Wav
     BSR     DAMAGE                  ; Deduct damage from health
@@ -746,6 +668,9 @@ RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 HIT_WAV        DC.B    'hit.wav',0        ; Collision Hit
 
     END    START        ; last line of source
+
+
+
 
 
 
