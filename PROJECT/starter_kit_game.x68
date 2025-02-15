@@ -42,12 +42,16 @@ GND_FALSE   EQU         00          ; Player on Ground False
 
 RUN_INDEX   EQU         00          ; Player Run Sound Index  
 JMP_INDEX   EQU         01          ; Player Jump Sound Index  
-HIT_INDEX   EQU          02          ; Player Hit Sound Index
+HIT_INDEX   EQU         02          ; Player Hit Sound Index
+PWR_INDEX   EQU         03          ; Powerup Hit Sound Index
 
 ENMY_W_INIT EQU         08          ; Enemy initial Width
 ENMY_H_INIT EQU         08          ; Enemy initial Height
 ENMY_DMG    EQU         10          ; Enemy damage amount 
 
+PWER_W_INIT EQU         08          ; Powerups initial width
+PWER_H_INIT EQU         08          ; Powerups initial height
+PWER_X_OFFSET EQU       540         
 *-----------------------------------------------------------
 * Section       : Game Stats
 * Description   : Points
@@ -62,6 +66,22 @@ POINTS      EQU         01          ; Points added
 SPACEBAR    EQU         $20         ; Spacebar ASCII Keycode
 ESCAPE      EQU         $1B         ; Escape ASCII Keycode
 
+WELCOME_SCREEN:
+    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+    MOVE.W  #$1809,     D1          ; Col 18, Row 09 (Roughly center)
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     WELCOME_MSG, A1
+    MOVE    #13, D0
+    TRAP    #15
+    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+    MOVE.W  #$1110,     D1          ; Col 11, Row 10 (Next line)
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     CONTROLS_MSG, A1
+    MOVE    #13,        D0
+    TRAP    #15
+    
+    MOVE    #05,        D0          ; Await for user to input ANY key to begin game
+    TRAP    #15
 *-----------------------------------------------------------
 * Subroutine    : Initialise
 * Description   : Initialise game data into memory such as 
@@ -133,6 +153,19 @@ INITIALISE:
     ;---------------------------
     DIVU    #02,        D1          ; divide by 2 for center on Y Axis
     MOVE.L  D1,         ENEMY_Y     ; Enemy Y Position
+    
+    ;Initialise PowerUp Pos
+    EOR.L   D1, D1
+    MOVE.W  SCREEN_W,   D1
+    ADD.L   #PWER_X_OFFSET,       D1         ;Shifts the powerup to offset it from the enemy (horizontally)
+    MOVE.L  D1,         POWER_X
+    
+    EOR.L   D1, D1  
+    MOVE.W  SCREEN_H,   D1
+    DIVU    #02,        D1          ;Gets exactly half the screen
+    ;SUB.L   #50,        D1         ;Add 50 to the y pos
+    MOVE.L  D1,         POWER_Y
+
 
     ; Enable the screen back buffer(see easy 68k help)
 	MOVE.B  #TC_DBL_BUF,D0          ; 92 Enables Double Buffer
@@ -143,6 +176,9 @@ INITIALISE:
     MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
 	MOVE.W  #$FF00,     D1          ; Fill Screen Clear
 	TRAP	#15                     ; Trap (Perform action)
+	
+
+    
 
 *-----------------------------------------------------------
 * Subroutine    : Game
@@ -167,7 +203,7 @@ GAMELOOP:
 *Delay, iterates through timer and decrements each pass until 0
 *-----------------------------------------------------------
 DELTA:
-    MOVE.L  #600, D0                ;Move 600 into D0, to begin loop for delay
+    MOVE.L  #1000, D0                ;Move 600 into D0, to begin loop for delay
 DELAY:
     SUB.L   #1, D0                  ;Decrement by one, then compare
     BNE     DELAY                   ;If Z  = 0, continue with loop
@@ -198,16 +234,44 @@ PROCESS_INPUT:
     MOVE.L  D2,         CURRENT_KEY ; Put Current Key in Memory
     CMP.L   #ESCAPE,    CURRENT_KEY ; Is Current Key Escape
     BEQ     EXIT                    ; Exit if Escape
+    CMP.L   #$50,       CURRENT_KEY
+    BEQ     PAUSE
     CMP.L   #SPACEBAR,  CURRENT_KEY ; Is Current Key Spacebar
     BEQ     JUMP                    ; Jump
     BRA     IDLE                    ; Or Idle
     RTS                             ; Return to subroutine
+    
+    
+    
+PAUSE:
+    ; Enable back buffer
+    MOVE.B  #94,        D0
+    TRAP    #15
 
+    ; Clear the screen
+    MOVE.B	#TC_CURSR_P,D0          ; Set Cursor Position
+	MOVE.W	#$FF00,     D1          ; Clear contents
+	TRAP    #15                     ; Trap (Perform action)
+
+    MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
+    MOVE.W  #$1809,     D1          ; Col 18, Row 09 (Roughly center)
+    TRAP    #15                     ; Trap (Perform action)
+    
+    LEA     PAUSED_MSG, A1
+    MOVE    #13, D0
+    TRAP    #15
+    
+    MOVE    #05, D0
+    TRAP    #15
+    
+    
+    
 *-----------------------------------------------------------
 * Subroutine    : Update
-* Description   : Main update loop update Player and Enemies                ;;;;;TODO -> Play with velocities
+* Description   : Main update loop update Player and Enemies                
 *-----------------------------------------------------------
 UPDATE:
+    
     ; Update the Players Positon based on Velocity and Gravity
     EOR.L   D1, D1                  - Ammended CLR
     MOVE.L  PLYR_VELOCITY, D1       ; Fetch Player Velocity
@@ -216,24 +280,36 @@ UPDATE:
     ADD.L   D2,         D1          ; Add Gravity to Velocity
     MOVE.L  D1,         PLYR_VELOCITY ; Update Player Velocity
     ADD.L   PLAYER_Y,   D1          ; Add Velocity to Player
-    MOVE.L  D1,         PLAYER_Y    ; Update Players Y Position 
-
+    MOVE.L  D1,         PLAYER_Y    ; Update Players Y Position
+ 
+  
     ; Move the Enemy
     EOR.L   D1, D1                  - Ammended CLR
     EOR.L   D0, D0                  - Ammended CLR for D0 (Note, previous code cleared D1 register)
     MOVE.L  ENEMY_X,    D1          ; Move the Enemy X Position to D0
     CMP.L   #00,        D1
     BLE     RESET_ENEMY_POSITION    ; Reset Enemy if off Screen
-    BRA     MOVE_ENEMY              ; Move the Enemy
 
+    
+    ;Move Powerup
+    EOR.L   D1, D1
+    EOR.L   D0, D0
+    MOVE.L  POWER_X,    D1
+    CMP.L   #00,        D1
+    BLE     RESET_POWER_POSITION    ; If the powerups position gets to 0, redraw and move again
+
+    BRA     MOVE_ENTITY              ; Move ALL entities
     RTS                             ; Return to subroutine  
- 
+
+
+    
 *-----------------------------------------------------------
-* Subroutine    : Move Enemy
-* Description   : Move Enemy Right to Left
+* Subroutine    : Move Entity
+* Description   : Move Entities Right to Left
 *-----------------------------------------------------------
-MOVE_ENEMY:
+MOVE_ENTITY:
     SUB.L   #01,        ENEMY_X     ; Move enemy by X Value
+    SUB.L   #01,        POWER_X
     RTS
 
 *-----------------------------------------------------------
@@ -245,7 +321,15 @@ RESET_ENEMY_POSITION:
     MOVE.W  SCREEN_W,   D1          ; Place Screen width in D1
     MOVE.L  D1,         ENEMY_X     ; Enemy X Position
     RTS
-
+*-----------------------------------------------------------
+* Subroutine    : Reset Powerup
+* Description   : Reset Powerup if it passes 0 to Right of Screen
+*-----------------------------------------------------------
+RESET_POWER_POSITION:
+    EOR.L   D1, D1
+    MOVE.W  SCREEN_W,   D1
+    MOVE.L  D1,         POWER_X
+    RTS
 *-----------------------------------------------------------
 * Subroutine    : Draw
 * Description   : Draw Screen
@@ -262,7 +346,9 @@ DRAW:
 
     BSR     DRAW_PLYR_DATA          ; Draw Draw Score, HUD, Player X and Y
     BSR     DRAW_PLAYER             ; Draw Player
+    BSR     DRAW_POWER              ; Draw powerup
     BSR     DRAW_ENEMY              ; Draw Enemy
+
     RTS                             ; Return to subroutine
 
 *-----------------------------------------------------------
@@ -303,8 +389,7 @@ DRAW_PLYR_DATA:
     MOVE.B  #03,        D0          ; Display number at D1.L
     MOVE.L  PLAYER_SCORE,D1         ; Move Score to D1.L
     TRAP    #15                     ; Trap (Perform action)
-    
-    
+        
     ; Show Keys Pressed
     MOVE.B  #TC_CURSR_P,D0          ; Set Cursor Position
     MOVE.W  #$2001,     D1          ; Col 20, Row 1
@@ -400,7 +485,7 @@ DAMAGE:
     CMP.L   #00, D1                 ;Check if the player has ran out of health
     BLE     GAME_OVER               ;If so, end game
     MOVE.L  D1, PLAYER_HEALTH       ;Move the new health value to PLAYER_HEALTH
-    BRA     DAMAGE_PAUSE            ;Branch when Health hits 0 to the EXIT sub-routine
+    BRA     DAMAGE_PAUSE            
 
     RTS                             ;Else if, return to sender
 *-----------------------------------------------------------
@@ -416,6 +501,7 @@ GAME_OVER:
 *----------------------------------------------------------- 
 DAMAGE_PAUSE:
     MOVE.L  #00,    ENEMY_X
+
     RTS
     
 *-----------------------------------------------------------
@@ -469,6 +555,19 @@ PLAY_HIT:
     MOVE    #72,        D0          ; Play Sound
     TRAP    #15                     ; Trap (Perform action)
     RTS                             ; Return to subroutine
+    
+POWERUP_LOAD:
+    LEA     POWER_WAV,   A1          ; Load Wav File into A1
+    MOVE    #PWR_INDEX, D1          ; Assign it INDEX
+    MOVE    #71,        D0          ; Load into memory
+    TRAP    #15                     ; Trap (Perform action)
+    RTS                             ; Return to subroutine
+
+PLAY_POWERUP:
+    MOVE    #PWR_INDEX,D1          ; Load Sound INDEX
+    MOVE    #72,        D0          ; Play Sound
+    TRAP    #15                     ; Trap (Perform action)
+    RTS       
 
 *-----------------------------------------------------------
 * Subroutine    : Draw Player
@@ -515,6 +614,25 @@ DRAW_ENEMY:
     MOVE.B  #87,        D0          ; Draw Enemy
     TRAP    #15                     ; Trap (Perform action)
     RTS                             ; Return to subroutine
+    
+DRAW_POWER:
+    ; Set Pixel Colors
+    MOVE.L  #GOLD,      D1          ; Set Background color
+    MOVE.B  #80,        D0          ; Task for Background Color
+    TRAP    #15                     ; Trap (Perform action)
+
+    ; Set X, Y, Width and Height
+    MOVE.L  POWER_X,    D1          ; X
+    MOVE.L  POWER_Y,    D2          ; Y
+    MOVE.L  POWER_X,    D3
+    ADD.L   #PWER_W_INIT,   D3      ; Width
+    MOVE.L  POWER_Y,    D4 
+    ADD.L   #PWER_H_INIT,   D4      ; Height
+    
+    ; Draw Powerup    
+    MOVE.B  #87,        D0          ; Draw Powerup
+    TRAP    #15                     ; Trap (Perform action)
+    RTS                             ; Return to subroutine
 
 *-----------------------------------------------------------
 * Subroutine    : Collision Check
@@ -535,37 +653,68 @@ PLAYER_X_LTE_TO_ENEMY_X_PLUS_W:
     ADD.L   ENMY_W_INIT,D2          ; Set Enemy width X + Width
     CMP.L   D1,         D2          ; Do the Overlap ?
     BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X  ; Less than or Equal ?
-    BRA     COLLISION_CHECK_DONE    ; If not no collision
+    BRA     PLAYER_X_LTE_TO_POWER_X_PLUS_W    ; If not no collision
 PLAYER_X_PLUS_W_LTE_TO_ENEMY_X:     ; Check player is not  
     ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
     MOVE.L  ENEMY_X,    D2          ; Move Enemy X to D2
     CMP.L   D1,         D2          ; Do they OverLap ?
     BGE     PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H  ; Less than or Equal
-    BRA     COLLISION_CHECK_DONE    ; If not no collision   
+    BRA     PLAYER_X_LTE_TO_POWER_X_PLUS_W    ; If not no collision   
 PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H:     
     MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
     MOVE.L  ENEMY_Y,    D2          ; Move Enemy Y to D2
     ADD.L   ENMY_H_INIT,D2          ; Set Enemy Height to D2
     CMP.L   D1,         D2          ; Do they Overlap ?
     BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y  ; Less than or Equal
-    BRA     COLLISION_CHECK_DONE    ; If not no collision 
+    BRA     PLAYER_X_LTE_TO_POWER_X_PLUS_W    ; If not no collision 
 PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y:     ; Less than or Equal ?
     ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
     MOVE.L  ENEMY_Y,    D2          ; Move Enemy Height to D2  
     CMP.L   D1,         D2          ; Do they OverLap ?
     BGE     COLLISION               ; Collision !
+    BRA     PLAYER_X_LTE_TO_POWER_X_PLUS_W    ; If not no collision
+    
+PLAYER_X_LTE_TO_POWER_X_PLUS_W:
+    MOVE.L  PLAYER_X,   D1          ; Move Player X to D1
+    MOVE.L  POWER_X,    D2          ; Move Enemy X to D2
+    ADD.L   PWER_W_INIT,D2          ; Set Enemy width X + Width
+    CMP.L   D1,         D2          ; Do the Overlap ?
+    BLE     PLAYER_X_PLUS_W_LTE_TO_POWER_X  ; Less than or Equal ?
     BRA     COLLISION_CHECK_DONE    ; If not no collision
+PLAYER_X_PLUS_W_LTE_TO_POWER_X:     ; Check player is not  
+    ADD.L   PLYR_W_INIT,D1          ; Move Player Width to D1
+    MOVE.L  POWER_X,    D2          ; Move Enemy X to D2
+    CMP.L   D1,         D2          ; Do they OverLap ?
+    BGE     PLAYER_Y_LTE_TO_POWER_Y_PLUS_H  ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE    ; If not no collision   
+PLAYER_Y_LTE_TO_POWER_Y_PLUS_H:     
+    MOVE.L  PLAYER_Y,   D1          ; Move Player Y to D1
+    MOVE.L  POWER_Y,    D2          ; Move Enemy Y to D2
+    ADD.L   PWER_H_INIT,D2          ; Set Enemy Height to D2
+    CMP.L   D1,         D2          ; Do they Overlap ?
+    BLE     PLAYER_Y_PLUS_H_LTE_TO_POWER_Y  ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE    ; If not no collision 
+PLAYER_Y_PLUS_H_LTE_TO_POWER_Y:     ; Less than or Equal ?
+    ADD.L   PLYR_H_INIT,D1          ; Add Player Height to D1
+    MOVE.L  POWER_Y,    D2          ; Move Enemy Height to D2  
+    CMP.L   D1,         D2          ; Do they OverLap ?
+    BGE     COLLISION_POWER               ; Collision !
+    BRA     COLLISION_CHECK_DONE    ; If not no collision
+    
 COLLISION_CHECK_DONE:               ; No Collision Update points
     MOVE.L  ENEMY_X, D1             
     MOVE.L  PLAYER_X, D2
     CMP.L   D1, D2                  ; Has the player succesfully jumped PASSED the 
     BLE     END_COLLISION           ; enemy? If not, end check
                                     ;If successfully got passed the enemy, increment score
-    ADD.L   #POINTS,    D1          ; Move points upgrade to D1         
-    ADD.L   PLAYER_SCORE,D1         ; Add to current player score
-    MOVE.L  D1, PLAYER_SCORE        ; Update player score in memory
+    BRA     INCREMENT_POINTS
 
     BRA     END_COLLISION
+    
+INCREMENT_POINTS:
+    ADD.L   #POINTS,    PLAYER_SCORE          ; Move points upgrade to D1         
+
+    RTS
 ;Returns to the calling subroutine
 END_COLLISION:
     RTS
@@ -582,7 +731,12 @@ COLLISION:
     
     RTS                             ; Return to subroutine
 
-
+COLLISION_POWER:
+    BSR     PLAY_POWERUP               ; Play Powerup Wav
+    ADD.L   #640, PLAYER_SCORE       ; Reset Player Score
+    BRA     RESET_POWER_POSITION    ; Sets next Enemeies position back to 0, simulating a game restart for this life.
+    
+    RTS      
 *-----------------------------------------------------------
 * Subroutine    : EXIT
 * Description   : Exit message and End Game
@@ -618,6 +772,9 @@ V_MSG           DC.B    'V:', 0             ; Velocity Position Message
 G_MSG           DC.B    'G:', 0             ; Gravity Position Message
 GND_MSG         DC.B    'GND:', 0           ; On Ground Position Message
 HEALTH_MSG      DC.B    'HP:',0             ; Health Message
+WELCOME_MSG     DC.W    'Welcome to Bentos World',0 
+CONTROLS_MSG    DC.W    'Press <ANY> key to begin. <SPACE> to Jump',0
+PAUSED_MSG      DC.W    'PAUSED', 0
 
 EXIT_MSG        DC.B    'Exiting....', 0    ; Exit Message
 
@@ -627,6 +784,7 @@ EXIT_MSG        DC.B    'Exiting....', 0    ; Exit Message
 *-----------------------------------------------------------
 WHITE           EQU     $00FFFFFF
 RED             EQU     $000000FF
+GOLD            EQU     $00ab7e1d
 
 *-----------------------------------------------------------
 * Section       : Screen Size
@@ -656,6 +814,8 @@ PLYR_ON_GND     DS.L    01  ; Reserve Space for Player on Ground
 ENEMY_X         DS.L    01  ; Reserve Space for Enemy X Position
 ENEMY_Y         DS.L    01  ; Reserve Space for Enemy Y Position
 
+POWER_X         DS.L    01  
+POWER_Y         DS.L    01
 *-----------------------------------------------------------
 * Section       : Sounds
 * Description   : Sound files, which are then loaded and given
@@ -666,8 +826,12 @@ ENEMY_Y         DS.L    01  ; Reserve Space for Enemy Y Position
 JUMP_WAV        DC.B    'jump.wav',0        ; Jump Sound
 RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 HIT_WAV        DC.B    'hit.wav',0        ; Collision Hit
+POWER_WAV       DC.B    'powerup.wav',0     ;Powerup Hit
 
     END    START        ; last line of source
+
+
+
 
 
 
