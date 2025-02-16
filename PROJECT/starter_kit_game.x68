@@ -4,9 +4,10 @@
 * Date       : 05/02/2025 - 16/02/2025
 * Description: Project 1 Assembly - Tiny World - BENTO'S WORLD
 *-----------------------------------------------------------
-;PLAY A COIN SOUND
 ;WHEN ENOUGH COINS COLLECTED (10000 POINTS) CUBE GETS BIGGER?
-
+;SOUNDS RETRIEVED FROM STREETS OF RAGE 1 AND 2 SFX
+;https://www.sounds-resource.com/genesis_32x_scd/streetsofrage/sound/7357/
+;https://www.sounds-resource.com/genesis_32x_scd/streetsrage2/sound/359/
     ORG    $1000
 START:                              ; first instruction of program
 
@@ -43,6 +44,7 @@ RUN_INDEX   EQU             00      ; Player Run Sound Index
 JMP_INDEX   EQU             01      ; Player Jump Sound Index  
 HIT_INDEX   EQU             02      ; Player Hit Sound Index
 PWR_INDEX   EQU             03      ; Powerup Hit Sound Index
+BEGIN_INDEX EQU             04      ; Begin Sound Index
 
 ENMY_W_INIT EQU             08      ; Enemy initial Width
 ENMY_H_INIT EQU             08      ; Enemy initial Height
@@ -55,6 +57,7 @@ PWER_Y_OFFSET EQU           600     ; Hide powerup initially
 
 ENTITY_SPD  EQU             05      ; Entity speed, alter depending on delta
 DELTA_AMT   EQU             6000    ; Delta amount
+NEW_MODE    EQU             500     ; Amount to unlock the new mode
 *-----------------------------------------------------------
 * Section       : Game Stats
 * Description   : Points
@@ -83,13 +86,128 @@ WELCOME_SCREEN:
     MOVE    #13,            D0
     TRAP    #15
     
-        
+    ;HIDE CURSOR       
     MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
     MOVE.W  #$7020,         D1      ; Move so invisible
     TRAP    #15                     ; Trap (Perform action)
     
     MOVE    #05,            D0      ; Await for user to input ANY key to begin game
     TRAP    #15
+MISSION_DETAIL:
+    ;Enable double buffering
+    MOVE.B  #94,            D0
+    TRAP    #15
+
+    ; Clear the screen
+    MOVE.B	#TC_CURSR_P,    D0      ; Set Cursor Position
+	MOVE.W	#$FF00,         D1      ; Clear contents
+	TRAP    #15                     ; Trap (Perform action)
+	
+	; LINE ONE
+    MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
+    MOVE.W  #$1009,         D1      ; Col 10, Row 09 (Roughly center)
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     WELCOME_1,      A1
+    MOVE    #14,            D0
+    TRAP    #15
+    
+    MOVE.L  #GREEN,         D1      ; Set Font color
+    MOVE.B  #21,            D0      ; Task for Font Color
+    TRAP    #15                     ; Trap (Perform action)
+    
+    MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
+    MOVE.W  #$1809,         D1      ; Col 18, Row 09 
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     WELCOME_2,   A1
+    MOVE    #14,            D0
+    TRAP    #15
+    
+    MOVE.L  #WHITE,         D1      ; Set Font color
+    MOVE.B  #21,            D0      ; Task for Font Color
+    TRAP    #15                     ; Trap (Perform action)
+    
+    MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
+    MOVE.W  #$2009,         D1      ; Col 20, Row 09 
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     WELCOME_3,      A1
+    MOVE    #14,            D0
+    TRAP    #15
+    
+    ; LINE TWO
+    MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
+    MOVE.W  #$0710,         D1      ; Col 07, Row 10 (Next line)
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     WELCOME_4,      A1
+    MOVE    #14,            D0
+    TRAP    #15
+    
+    MOVE.L  #FUCHSIA,       D1      ; Set Font color
+    MOVE.B  #21,            D0      ; Task for Font Color
+    TRAP    #15                     ; Trap (Perform action)
+    
+    MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
+    MOVE.W  #$1510,         D1      ; Col 15, Row 10 
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     WELCOME_5,      A1
+    MOVE    #14,            D0
+    TRAP    #15
+    
+    MOVE.L  #WHITE,         D1      ; Set Font color
+    MOVE.B  #21,            D0      ; Task for Font Color
+    TRAP    #15                     ; Trap (Perform action)
+    
+    MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
+    MOVE.W  #$2010,         D1      ; Col 20, Row 10 
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     WELCOME_6,      A1
+    MOVE    #14,            D0
+    TRAP    #15
+    
+    
+    ;HIDE CURSOR
+    MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
+    MOVE.W  #$7020,         D1      ; Move so invisible
+    TRAP    #15                     ; Trap (Perform action)
+    
+    MOVE    #05,            D0      ; Await for user to input ANY key to begin game
+    TRAP    #15
+LETS_GO:
+;Enable double buffering
+    MOVE.B  #94,            D0
+    TRAP    #15
+
+    ; Clear the screen
+    MOVE.B	#TC_CURSR_P,    D0      ; Set Cursor Position
+	MOVE.W	#$FF00,         D1      ; Clear contents
+	TRAP    #15                     ; Trap (Perform action)
+	
+	; LINE ONE
+    MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
+    MOVE.W  #$1209,         D1      ; Col 12, Row 09 (Roughly center)
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     WELCOME_7,      A1
+    MOVE    #14,            D0
+    TRAP    #15
+    
+    ; LINE TWO
+    MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
+    MOVE.W  #$0710,         D1      ; Col 07, Row 10 (Next line)
+    TRAP    #15                     ; Trap (Perform action)
+    LEA     WELCOME_8,      A1
+    MOVE    #14,            D0
+    TRAP    #15
+    
+    ;HIDE CURSOR
+    MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
+    MOVE.W  #$7020,         D1      ; Move so invisible
+    TRAP    #15                     ; Trap (Perform action)
+    
+    MOVE    #05,            D0      ; Await for user to input ANY key to begin game
+    TRAP    #15
+    
+    ; PLAY A SPOOKY SOUND TO BEGIN
+    BSR     BEGIN_LOAD
+    BSR     PLAY_BEGIN
 *-----------------------------------------------------------
 * Subroutine    : Initialise
 * Description   : Initialise game data into memory such as 
@@ -100,6 +218,7 @@ INITIALISE:
     BSR     RUN_LOAD                ; Load Run Sound into Memory
     BSR     JUMP_LOAD               ; Load Jump Sound into Memory
     BSR     HIT_LOAD                ; Load Hit (Collision) Sound into Memory
+    BSR     POWERUP_LOAD            ; Load Powerup Collision Sound into memory
     
     MOVE.B  #00,    HARD_MODE       ;Initialise hardmode to false
     ; Screen Size
@@ -330,7 +449,7 @@ UPDATE:
 *-----------------------------------------------------------
 CHECK_POINTS:
     MOVE.L  PLAYER_SCORE,   D1
-    CMP.L   #500,           D1          ; When player reaches 500 points,adavanced method of getting points begins
+    CMP.L   #NEW_MODE,      D1          ; When player reaches x points, new mode unlocks
     BGE     SPAWN_POWER             
     RTS
 SPAWN_POWER:
@@ -449,10 +568,18 @@ DRAW_PLYR_DATA:
 
     ; Player Score Value
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$0901,         D1              ; Col 09, Row 01
+    MOVE.W  #$1001,         D1              ; Col 10, Row 01
     TRAP    #15                             ; Trap (Perform action)
     MOVE.B  #03,            D0              ; Display number at D1.L
     MOVE.L  PLAYER_SCORE,   D1              ; Move Score to D1.L
+    TRAP    #15                             ; Trap (Perform action)
+    
+    ; CM message
+    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
+    MOVE.W  #$1401,         D1              ; Col 14, Row 01
+    TRAP    #15                             ; Trap (Perform action)
+    LEA     CM_MSG,      A1              ; Score Message
+    MOVE    #13,            D0              ; No Line feed
     TRAP    #15                             ; Trap (Perform action)
         
     ; Show Keys Pressed
@@ -659,7 +786,20 @@ PLAY_POWERUP:
     MOVE    #PWR_INDEX,     D1              ; Load Sound INDEX
     MOVE    #72,            D0              ; Play Sound
     TRAP    #15                             ; Trap (Perform action)
-    RTS       
+    RTS
+
+BEGIN_LOAD:
+    LEA     BEGIN_WAV,      A1              ; Load Wav File into A1
+    MOVE    #BEGIN_INDEX,     D1              ; Assign it INDEX
+    MOVE    #71,            D0              ; Load into memory
+    TRAP    #15                             ; Trap (Perform action)
+    RTS                                     ; Return to subroutine
+
+PLAY_BEGIN:
+    MOVE    #BEGIN_INDEX,     D1              ; Load Sound INDEX
+    MOVE    #72,            D0              ; Play Sound
+    TRAP    #15                             ; Trap (Perform action)
+    RTS        
 
 *-----------------------------------------------------------
 * Subroutine    : Draw Player
@@ -667,7 +807,7 @@ PLAY_POWERUP:
 *-----------------------------------------------------------
 DRAW_PLAYER:
     ; Set Pixel Colors
-    MOVE.L  #WHITE,         D1              ; Set Background color
+    MOVE.L  #GREEN,         D1              ; Set Background color
     MOVE.B  #80,            D0              ; Task for Background Color
     TRAP    #15                             ; Trap (Perform action)
 
@@ -826,7 +966,7 @@ COLLISION:
 
 COLLISION_POWER:
     BSR     PLAY_POWERUP                    ; Play Powerup Wav
-    ADD.L   #640,       PLAYER_SCORE        ; Reset Player Score
+    ADD.L   #640,       PLAYER_SCORE        ; Add points to score
     BRA     RESET_POWER_POSITION            ; Sets next Enemeies position back to 0, simulating a game restart for this life.
     
     RTS      
@@ -851,24 +991,37 @@ EXIT:
 * Description   : Messages to Print on Console, names should be
 * self documenting
 *-----------------------------------------------------------
-SCORE_MSG       DC.B    'Score : ', 0       ; Score Message
+SCORE_MSG       DC.B    'Distance : ', 0       ; Score Message
+CM_MSG          DC.B    'cm',0
 KEYCODE_MSG     DC.B    'KeyCode : ', 0     ; Keycode Message
 
 HEALTH_MSG      DC.B    'HP:',0                     ; Health Message
-WELCOME_MSG     DC.W    'Welcome to Bentos World',0 ; Welcome Message
-CONTROLS_MSG    DC.B    'Press <ANY> key to begin. <SPACE> to Jump',0 ; Controls Message
+WELCOME_MSG     DC.B    'Welcome to Bentos World',0 ; Welcome Message
+WELCOME_1       DC.B    'You are ',0
+WELCOME_2       DC.B    '<BENTO> ',0
+WELCOME_3       DC.B    ' ruler of the great Frog Kingdom!',0
+WELCOME_4       DC.B    'Your beloved ',0 
+WELCOME_5       DC.B    '<FROGETTE> ',0
+WELCOME_6       DC.B    ' has been tangled in a swarm of jungle vine..',0
+WELCOME_7       DC.B    '... You know your mission, Bento',0
+WELCOME_8       DC.B    'Be careful when you get beyond the w a l l - 500 paces from here',0
+
+CONTROLS_MSG    DC.B    'Press <ANY> key to continue. <SPACE> to Jump',0 ; Controls Message
 PAUSED_MSG      DC.B    'PAUSED',0                  ; Paused Message
 GAMEOVER_MSG    DC.B    'GAMEOVER',0                ; Gameover Message
 HARDMODE_MSG    DC.B    'HARD MODE',0               ; Hardmode Message
+
 EXIT_MSG        DC.B    'Exiting....', 0    ; Exit Message
 
 *-----------------------------------------------------------
 * Section       : Graphic Colors
 * Description   : Screen Pixel Color
 *-----------------------------------------------------------
-WHITE           EQU     $00FFFFFF
+GREEN           EQU     $002DBD17
 RED             EQU     $000000FF
-GOLD            EQU     $00FFD700
+GOLD            EQU     $00FDFF59
+WHITE           EQU     $00FFFFFF
+FUCHSIA         EQU     $00FF00FF 
 
 *-----------------------------------------------------------
 * Section       : Screen Size
@@ -900,7 +1053,7 @@ ENEMY_Y         DS.L    01  ; Reserve Space for Enemy Y Position
 
 POWER_X         DS.L    01  ; Reserve Space for Power X Pos
 POWER_Y         DS.L    01  ; Reserve Space for Power Y Pos
-HARD_MODE       DS.B    00  ; Reserve Space for Hard_Mode flag
+HARD_MODE       DS.B    01  ; Reserve Space for Hard_Mode flag
 *-----------------------------------------------------------
 * Section       : Sounds
 * Description   : Sound files, which are then loaded and given
@@ -912,9 +1065,12 @@ JUMP_WAV        DC.B    'jump.wav',0        ; Jump Sound
 RUN_WAV         DC.B    'run.wav',0         ; Run Sound
 HIT_WAV         DC.B    'hit.wav',0         ; Collision Hit
 POWER_WAV       DC.B    'powerup.wav',0     ; Powerup Hit
+BEGIN_WAV       DC.B    'begin.wav',0       ; Begin sound
 
 
     END    START                            ; last line of source
+
+
 
 
 
