@@ -30,8 +30,8 @@ TC_EXIT     EQU         09          ; Exit Trapcode
 * Description   : Size of Player and Enemy and properties
 * of these characters e.g Starting Positions and Sizes
 *-----------------------------------------------------------
-PLYR_W_INIT EQU             08      ; Players initial Width
-PLYR_H_INIT EQU             08      ; Players initial Height
+PLYR_W_INIT EQU             16      ; Players initial Width
+PLYR_H_INIT EQU             16      ; Players initial Height
 
 PLYR_DFLT_V EQU             00      ; Default Player Velocity
 PLYR_JUMP_V EQU             -20     ; Player Jump Velocity
@@ -46,12 +46,12 @@ HIT_INDEX   EQU             02      ; Player Hit Sound Index
 PWR_INDEX   EQU             03      ; Powerup Hit Sound Index
 BEGIN_INDEX EQU             04      ; Begin Sound Index
 
-ENMY_W_INIT EQU             08      ; Enemy initial Width
-ENMY_H_INIT EQU             08      ; Enemy initial Height
+ENMY_W_INIT EQU             16      ; Enemy initial Width
+ENMY_H_INIT EQU             16      ; Enemy initial Height
 ENMY_DMG    EQU             35      ; Enemy damage amount 
 
-PWER_W_INIT EQU             08      ; Powerups initial width
-PWER_H_INIT EQU             08      ; Powerups initial height
+PWER_W_INIT EQU             16      ; Powerups initial width
+PWER_H_INIT EQU             16      ; Powerups initial height
 PWER_X_OFFSET EQU           540     ; Powerup offset from enemy pos
 PWER_Y_OFFSET EQU           600     ; Hide powerup initially
 
@@ -510,7 +510,7 @@ DRAW:
     MOVE.B	#TC_CURSR_P,    D0              ; Set Cursor Position
 	MOVE.W	#$FF00,         D1              ; Clear contents
 	TRAP    #15                             ; Trap (Perform action)
-
+    BSR     DRAW_PLATFORM
     BSR     DRAW_PLYR_DATA                  ; Draw Draw Score, HUD, Player X and Y
     BSR     DRAW_PLAYER                     ; Draw Player
     BSR     DRAW_POWER                      ; Draw powerup
@@ -865,6 +865,29 @@ DRAW_POWER:
     MOVE.B  #87,            D0              ; Draw Powerup
     TRAP    #15                             ; Trap (Perform action)
     RTS                                     ; Return to subroutine
+    
+DRAW_PLATFORM:
+    ; Set Pixel Colors
+    MOVE.L  #WHITE,         D1              ; Set Background color
+    MOVE.B  #80,            D0              ; Task for Background Color
+    TRAP    #15                             ; Trap (Perform action)
+   
+    ;Platform is a rectangle, starting at (0, (screen_height / 2) + SPRITE HEIGHT) 
+    ;ends at (screen width, (screen_h / 2) + SPRITE HEIGHT)
+    MOVE.W  #00,            D1  ;X1
+    MOVE.W  SCREEN_H,       D2  ;Y1
+    DIVU    #02,            D2
+    ADD.W   #PLYR_H_INIT,   D2
+    
+    MOVE.W  #SCREEN_W,      D3  ;X2
+    MOVE.W  #SCREEN_H,      D4  ;Y2
+    DIVU    #02,            D4
+    ADD.W   #PLYR_H_INIT,   D4
+    
+    ; Draw Platform    
+    MOVE.B  #87,            D0              ; Draw Powerup
+    TRAP    #15                             ; Trap (Perform action)
+    RTS                                     ; Return to subroutine
 
 *-----------------------------------------------------------
 * Subroutine    : Collision Check
@@ -1069,6 +1092,7 @@ BEGIN_WAV       DC.B    'begin.wav',0       ; Begin sound
 
 
     END    START                            ; last line of source
+
 
 
 
