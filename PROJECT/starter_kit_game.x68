@@ -34,6 +34,9 @@ TC_EXIT     EQU         09          ; Exit Trapcode
 PLYR_W_INIT EQU             16      ; Players initial Width
 PLYR_H_INIT EQU             16      ; Players initial Height
 
+FRG_W_INIT  EQU             16
+FRG_H_INIT  EQU             16
+
 PLYR_DFLT_V EQU             00      ; Default Player Velocity
 PLYR_JUMP_V EQU             -20     ; Player Jump Velocity
 PLYR_DFLT_G EQU             01      ; Player Default Gravity
@@ -58,8 +61,9 @@ WRM_X_OFFSET EQU            540     ; Worms offset from enemy pos
 WRM_Y_OFFSET EQU            600     ; Hide worms initially
 
 ENTITY_SPD  EQU             05      ; Entity speed, alter depending on delta
-DELTA_AMT   EQU             6000    ; Delta amount
+DELTA_AMT   EQU             10000    ; Delta amount
 NEW_MODE    EQU             500     ; Amount to unlock the new mode
+SPAWN_FROGETTE EQU          10000   ; Amount to win!
 *-----------------------------------------------------------
 * Section       : Game Stats
 * Description   : Points
@@ -74,6 +78,7 @@ POINTS      EQU             01      ; Points added
 SPACEBAR    EQU             $20     ; Spacebar ASCII Keycode
 ESCAPE      EQU             $1B     ; Escape ASCII Keycode
 P           EQU             $50     ; P ASCII code
+
 
 WELCOME_SCREEN:
     MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
@@ -237,20 +242,25 @@ INITIALISE:
     ; Place the Player at the center of the screen
     EOR.L   D1, D1                      - Ammended CLR (EOR = inverter) So, using D1 as the operand on itself flips the bits that are 1 to 0
     MOVE.W  SCREEN_W,       D1          ; Place Screen width in D1
-    ;---------------------------
-    ;Right shift?
-    ;---------------------------
     DIVU    #02,            D1          ; divide by 2 for center on X Axis
 
     MOVE.L  D1,             PLAYER_X    ; Players X Position
 
     EOR.L   D1, D1                      - Ammended CLR
     MOVE.W  SCREEN_H,       D1          ; Place Screen width in D1
-    ;---------------------------
-    ;Right Shift?
-    ;---------------------------
     DIVU    #02,            D1          ; divide by 2 for center on Y Axis
     MOVE.L  D1,             PLAYER_Y    ; Players Y Position
+    
+    EOR.L   D1, D1                      - Ammended CLR (EOR = inverter) So, using D1 as the operand on itself flips the bits that are 1 to 0
+    MOVE.W  SCREEN_W,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on X Axis
+    ADD     #500,           D1
+    MOVE.L  D1,             FROGETTE_X    ; Players X Position
+
+    EOR.L   D1, D1                      - Ammended CLR
+    MOVE.W  SCREEN_H,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on Y Axis
+    MOVE.L  D1,             FROGETTE_Y    ; Players Y Position    
 
     ; Initialise Player Health to 100
     EOR.L   D1,             D1          - Ammended CLR
@@ -282,9 +292,6 @@ INITIALISE:
 
     EOR.L   D1,             D1          - Ammended CLR
     MOVE.W  SCREEN_H,       D1          ; Place Screen width in D1
-    ;---------------------------
-    ;Right shift?
-    ;---------------------------
     DIVU    #02,            D1          ; divide by 2 for center on Y Axis
     MOVE.L  D1,             ENEMY_Y     ; Enemy Y Position
     
@@ -483,8 +490,12 @@ ACTIVATE_HARD_MODE:
 MOVE_ENTITY:
     SUB.L   #ENTITY_SPD,        ENEMY_X     ; Move enemy by X Value
     SUB.L   #ENTITY_SPD,        WORM_X
+    CMP.L   #SPAWN_FROGETTE,    PLAYER_SCORE    ; When X value is met by players score, spawn his true love
+    BGE     MOVE_FROGETTE
     RTS
-
+MOVE_FROGETTE:
+    SUB.L   #ENTITY_SPD,        FROGETTE_X
+    RTS
 *-----------------------------------------------------------
 * Subroutine    : Reset Enemy
 * Description   : Reset Enemy if to passes 0 to Right of Screen
@@ -519,6 +530,7 @@ DRAW:
     BSR     DRAW_PLATFORM
     BSR     DRAW_PLYR_DATA                  ; Draw Draw Score, HUD, Player X and Y
     BSR     DRAW_PLAYER                     ; Draw Player
+    BSR     DRAW_FROGETTE
     BSR     DRAW_WORM                       ; Draw Worm
     BSR     DRAW_ENEMY                      ; Draw Enemy
     BSR     CHECK_HARD_MODE                 ; Check if hard mode flag is true
@@ -643,10 +655,7 @@ IS_PLAYER_ON_GND:
     ; Check if Player is on Ground
     EOR.L   D1,             D1               - Ammended CLR
     EOR.L   D2,             D2               - Ammended CLR
-    MOVE.W  SCREEN_H,       D1              ; Place Screen width in D1
-    ;---------------------------
-    ;Right shift
-    ;--------------------------    
+    MOVE.W  SCREEN_H,       D1              ; Place Screen width in D1  
     DIVU    #02,            D1              ; divide by 2 for center on Y Axisxis
     MOVE.L  PLAYER_Y,       D2              ; Player Y Position
     CMP     D1,             D2              ; Compare middle of Screen with Players Y Position 
@@ -662,9 +671,6 @@ IS_PLAYER_ON_GND:
 SET_ON_GROUND:
     EOR.L   D1,             D1              - Ammended CLR 
     MOVE.W  SCREEN_H,       D1              ; Place Screen width in D1
-    ;---------------------------
-    ;Right shift?
-    ;---------------------------
     DIVU    #02,            D1              ; divide by 2 for center on Y Axis
     MOVE.L  D1,         PLAYER_Y            ; Reset the Player Y Position
     EOR.L   D1,             D1              - Ammended CLR  
@@ -694,7 +700,6 @@ PERFORM_JUMP:
     RTS                                     ; Return to subroutine
 JUMP_DONE:
     RTS                                     ; Return to subroutine
-    
 *-----------------------------------------------------------
 * Subroutine    : Damage
 * Description   : Deduct damage from player
@@ -882,7 +887,24 @@ DRAW_PLAYER:
     MOVE.B  #87,            D0              ; Draw Player
     TRAP    #15                             ; Trap (Perform action)
     RTS                                     ; Return to subroutine
+DRAW_FROGETTE
+    ; Set Pixel Colors
+    MOVE.L  #FUCHSIA,       D1              ; Set Background color
+    MOVE.B  #80,            D0              ; Task for Background Color
+    TRAP    #15                             ; Trap (Perform action)
 
+    ; Set X, Y, Width and Height
+    MOVE.L  FROGETTE_X,       D1              ; X
+    MOVE.L  FROGETTE_Y,       D2              ; Y
+    MOVE.L  FROGETTE_X,       D3
+    ADD.L   #FRG_W_INIT,   D3              ; Width
+    MOVE.L  FROGETTE_Y,       D4 
+    ADD.L   #FRG_H_INIT,   D4              ; Height
+    
+    ; Draw Player
+    MOVE.B  #87,            D0              ; Draw Player
+    TRAP    #15                             ; Trap (Perform action)
+    RTS                                     ; Return to subroutine
 *-----------------------------------------------------------
 * Subroutine    : Draw Enemy
 * Description   : Draw Enemy Square
@@ -1060,6 +1082,7 @@ PLAYER_Y_PLUS_H_LTE_TO_WORM_Y:             ; Less than or Equal ?
     BGE     COLLISION_WORM                 ; Collision !
     BRA     COLLISION_CHECK_DONE            ; If not no collision
     
+    
 COLLISION_CHECK_DONE:                       ; No Collision Update points
     MOVE.L  ENEMY_X,        D1             
     MOVE.L  PLAYER_X,       D2
@@ -1184,6 +1207,10 @@ CURRENT_KEY     DS.L    01  ; Reserve Space for Current Key Pressed
 *-----------------------------------------------------------
 PLAYER_X        DS.L    01  ; Reserve Space for Player X Position
 PLAYER_Y        DS.L    01  ; Reserve Space for Player Y Position
+
+FROGETTE_X      DS.L    01
+FROGETTE_Y      DS.L    01
+
 PLAYER_SCORE    DS.L    01  ; Reserve Space for Player Score
 PLAYER_HEALTH   DS.L    01  ; Reserve Space for Player Health
 PLYR_VELOCITY   DS.L    01  ; Reserve Space for Player Velocity
@@ -1212,6 +1239,9 @@ THUNDER_WAV     DC.B    'sounds/thunder.wav',0
 
 
     END    START                            ; last line of source
+
+
+
 
 
 
