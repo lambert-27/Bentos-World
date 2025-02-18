@@ -61,9 +61,9 @@ WRM_X_OFFSET EQU            540     ; Worms offset from enemy pos
 WRM_Y_OFFSET EQU            600     ; Hide worms initially
 
 ENTITY_SPD  EQU             05      ; Entity speed, alter depending on delta
-DELTA_AMT   EQU             10000    ; Delta amount
+DELTA_AMT   EQU             6000    ; Delta amount
 NEW_MODE    EQU             500     ; Amount to unlock the new mode
-SPAWN_FROGETTE EQU          10000   ; Amount to win!
+SPAWN_FROGETTE EQU          1000    ; Amount to win!
 *-----------------------------------------------------------
 * Section       : Game Stats
 * Description   : Points
@@ -231,6 +231,7 @@ INITIALISE:
    
     
     MOVE.B  #00,    HARD_MODE       ;Initialise hardmode to false
+    MOVE.B  #00,    FROGETTE_FLAG
     ; Screen Size
     MOVE.B  #TC_SCREEN,     D0      ; access screen information
     MOVE.L  #TC_S_SIZE,     D1      ; placing 0 in D1 triggers loading screen size information
@@ -474,6 +475,11 @@ SPAWN_WORM:
     CMP.B   #00,        HARD_MODE       ;...unfortunately so to does hard_mode begin
     BEQ     ACTIVATE_HARD_MODE
     RTS
+*---------------------------------------
+* Sets hardmode flag to active, 
+* plays a thunder sound for ENVIRONMENTAL
+* EFFECTS
+*---------------------------------------
 ACTIVATE_HARD_MODE:
     BSR     PLAY_THUNDER
     ADD.B   #01,        HARD_MODE       ;Set hardmode to true
@@ -490,11 +496,34 @@ ACTIVATE_HARD_MODE:
 MOVE_ENTITY:
     SUB.L   #ENTITY_SPD,        ENEMY_X     ; Move enemy by X Value
     SUB.L   #ENTITY_SPD,        WORM_X
-    CMP.L   #SPAWN_FROGETTE,    PLAYER_SCORE    ; When X value is met by players score, spawn his true love
-    BGE     MOVE_FROGETTE
+    CMP.L   #SPAWN_FROGETTE,    PLAYER_SCORE ; When X value is met by players score, spawn his true love
+    BGE     MOVE_FROGETTE                   ; When Frogette spawns, she moves
     RTS
+*---------------------------------------
+* Move Frogette
+*---------------------------------------    
 MOVE_FROGETTE:
     SUB.L   #ENTITY_SPD,        FROGETTE_X
+    BSR     CHECK_FROGETTE                  ;
+    BEQ     SET_FLAG
+    RTS
+*---------------------------------------
+* Sets Frogette's flag to Active
+*---------------------------------------
+SET_FLAG:
+    MOVE.B  #01,        FROGETTE_FLAG
+    RTS
+*---------------------------------------
+* Check to see if Frogette has spawned
+*---------------------------------------    
+CHECK_FROGETTE:
+    CMP.B   #00,        FROGETTE_FLAG
+    RTS
+*---------------------------------------
+* Check if hardmode has begun
+*---------------------------------------
+CHECK_HARDMODE:
+    CMP.B   #00,        HARD_MODE
     RTS
 *-----------------------------------------------------------
 * Subroutine    : Reset Enemy
@@ -1033,56 +1062,110 @@ PLAYER_X_LTE_TO_ENEMY_X_PLUS_W:
     MOVE.L  ENEMY_X,        D2              ; Move Enemy X to D2
     ADD.L   ENMY_W_INIT,    D2              ; Set Enemy width X + Width
     CMP.L   D1,             D2              ; Do the Overlap ?
-    BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X  ; Less than or Equal ?
-    BRA     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If not no collision, check if one with other entity
-PLAYER_X_PLUS_W_LTE_TO_ENEMY_X:             ; Check player is not  
+    BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X  ; If they do, check the next side
+    BSR     CHECK_HARDMODE                  ; Check if hardmode is active, 
+    BNE     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If hardmode ISN'T 0 (meaning it's active), then we need to check for worm collisions (note to check, I branched to the PAUSE subroutine, when enemy spawns, game should pause)
+    BRA     COLLISION_CHECK_DONE            ; Otherwise, there's no need to have worm collisions taking up cycles
+    
+PLAYER_X_PLUS_W_LTE_TO_ENEMY_X:              
     ADD.L   PLYR_W_INIT,    D1              ; Move Player Width to D1
     MOVE.L  ENEMY_X,        D2              ; Move Enemy X to D2
     CMP.L   D1,             D2              ; Do they OverLap ?
-    BGE     PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H  ; Less than or Equal
-    BRA     PLAYER_X_LTE_TO_WORM_X_PLUS_W  ; If not no collision   
+    BGE     PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H  
+    BSR     CHECK_HARDMODE                  ; Check for hardmode
+    BNE     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If active, check for worms  
+    BRA     COLLISION_CHECK_DONE            ; Otherwise, collision check done
 PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H:     
     MOVE.L  PLAYER_Y,       D1              ; Move Player Y to D1
     MOVE.L  ENEMY_Y,        D2              ; Move Enemy Y to D2
     ADD.L   ENMY_H_INIT,    D2              ; Set Enemy Height to D2
     CMP.L   D1,             D2              ; Do they Overlap ?
-    BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y  ; Less than or Equal
-    BRA     PLAYER_X_LTE_TO_WORM_X_PLUS_W  ; If not no collision 
-PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y:             ; Less than or Equal ?
+    BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y  
+    BSR     CHECK_HARDMODE                  ; Check for hardmode
+    BNE     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If active, check for worms 
+    BRA     COLLISION_CHECK_DONE            ; Otherwise, collision check done
+    
+PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y:             
     ADD.L   PLYR_H_INIT,    D1              ; Add Player Height to D1
     MOVE.L  ENEMY_Y,        D2              ; Move Enemy Height to D2  
     CMP.L   D1,             D2              ; Do they OverLap ?
     BGE     COLLISION                       ; Collision !
-    BRA     PLAYER_X_LTE_TO_WORM_X_PLUS_W  ; If not no collision
-    
+    BSR     CHECK_HARDMODE                  ; Check hardmode
+    BNE     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If active, check for worms
+    BRA     COLLISION_CHECK_DONE            ; Otherwise, we good
+*-----------------------------------------------------------
+* Subroutine    : Collision for Worms
+* Description   : Checks for collision w/ worms
+*-----------------------------------------------------------
 PLAYER_X_LTE_TO_WORM_X_PLUS_W:
     MOVE.L  PLAYER_X,       D1              ; Move Player X to D1
-    MOVE.L  WORM_X,        D2              ; Move Worm X to D2
-    ADD.L   WRM_W_INIT,    D2              ; Set Worm width X + Width
+    MOVE.L  WORM_X,         D2              ; Move Worm X to D2
+    ADD.L   WRM_W_INIT,     D2              ; Set Worm width X + Width
     CMP.L   D1,             D2              ; Do the Overlap ?
-    BLE     PLAYER_X_PLUS_W_LTE_TO_WORM_X  ; Less than or Equal ?
-    BRA     COLLISION_CHECK_DONE            ; If not no collision
-PLAYER_X_PLUS_W_LTE_TO_WORM_X:             ; Check player is not  
+    BLE     PLAYER_X_PLUS_W_LTE_TO_WORM_X   ; Check next side if so
+    BSR     CHECK_FROGETTE                  ; If not, check if Frogette has spawned, if so we need to check for collisions with her
+    BNE     PLAYER_X_LTE_TO_FRG_X_PLUS_W    ; If she is currently around, go check for her collisions
+    BRA     COLLISION_CHECK_DONE            ; Otherwise, collision check is done
+    
+PLAYER_X_PLUS_W_LTE_TO_WORM_X:                
     ADD.L   PLYR_W_INIT,    D1              ; Move Player Width to D1
-    MOVE.L  WORM_X,        D2              ; Move Worm X to D2
+    MOVE.L  WORM_X,         D2              ; Move Worm X to D2
     CMP.L   D1,             D2              ; Do they OverLap ?
-    BGE     PLAYER_Y_LTE_TO_WORM_Y_PLUS_H  ; Less than or Equal
-    BRA     COLLISION_CHECK_DONE            ; If not no collision   
+    BGE     PLAYER_Y_LTE_TO_WORM_Y_PLUS_H   ; If so, check next side
+    BSR     CHECK_FROGETTE                  ; Check if Frogette is around
+    BNE     PLAYER_X_LTE_TO_FRG_X_PLUS_W    ; If so, check for collisions
+    BRA     COLLISION_CHECK_DONE            ; Otherwise, collision check is done
 PLAYER_Y_LTE_TO_WORM_Y_PLUS_H:     
     MOVE.L  PLAYER_Y,       D1              ; Move Player Y to D1
-    MOVE.L  WORM_Y,        D2              ; Move Worm Y to D2
-    ADD.L   WRM_H_INIT,    D2              ; Set Enemy Height to D2
+    MOVE.L  WORM_Y,         D2              ; Move Worm Y to D2
+    ADD.L   WRM_H_INIT,    D2               ; Set Worm Height to D2
     CMP.L   D1,             D2              ; Do they Overlap ?
-    BLE     PLAYER_Y_PLUS_H_LTE_TO_WORM_Y  ; Less than or Equal
-    BRA     COLLISION_CHECK_DONE            ; If not no collision 
-PLAYER_Y_PLUS_H_LTE_TO_WORM_Y:             ; Less than or Equal ?
+    BLE     PLAYER_Y_PLUS_H_LTE_TO_WORM_Y   ; Check next side
+    BSR     CHECK_FROGETTE                  ; Check for Frogette
+    BNE     PLAYER_X_LTE_TO_FRG_X_PLUS_W    ; If so, check for collisions        
+    BRA     COLLISION_CHECK_DONE            ; Otherwise collision check is done
+    
+PLAYER_Y_PLUS_H_LTE_TO_WORM_Y:              ; Less than or Equal ?
     ADD.L   PLYR_H_INIT,    D1              ; Add Player Height to D1
-    MOVE.L  WORM_Y,        D2              ; Move Worm Height to D2  
+    MOVE.L  WORM_Y,        D2               ; Move Worm Height to D2  
     CMP.L   D1,             D2              ; Do they OverLap ?
-    BGE     COLLISION_WORM                 ; Collision !
+    BGE     COLLISION_WORM                  ; Collision !
+    BSR     CHECK_FROGETTE                  ; If not, check for Frogette
+    BNE     PLAYER_X_LTE_TO_FRG_X_PLUS_W    ; If around, check for her collisions
+    BRA     COLLISION_CHECK_DONE            ; Otherwise collision check is done
+*-----------------------------------------------------------
+* Subroutine    : Collision for Frogette
+* Description   : Checks for collision w/ Frogette
+*-----------------------------------------------------------
+PLAYER_X_LTE_TO_FRG_X_PLUS_W:
+    MOVE.L  PLAYER_X,       D1              ; Move Player X to D1
+    MOVE.L  FROGETTE_X,     D2              ; Move Worm X to D2
+    ADD.L   FRG_W_INIT,     D2              ; Set Worm width X + Width
+    CMP.L   D1,             D2              ; Do the Overlap ?
+    BLE     PLAYER_X_PLUS_W_LTE_TO_FRG_X    ; Less than or Equal ?
     BRA     COLLISION_CHECK_DONE            ; If not no collision
+PLAYER_X_PLUS_W_LTE_TO_FRG_X:               ; Check player is not  
+    ADD.L   PLYR_W_INIT,    D1              ; Move Player Width to D1
+    MOVE.L  FROGETTE_X,     D2              ; Move Worm X to D2
+    CMP.L   D1,             D2              ; Do they OverLap ?
+    BGE     PLAYER_Y_LTE_TO_FRG_Y_PLUS_H    ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE            ; If not no collision   
+PLAYER_Y_LTE_TO_FRG_Y_PLUS_H:     
+    MOVE.L  PLAYER_Y,       D1              ; Move Player Y to D1
+    MOVE.L  FROGETTE_Y,     D2              ; Move Worm Y to D2
+    ADD.L   FRG_H_INIT,     D2              ; Set Worm Height to D2
+    CMP.L   D1,             D2              ; Do they Overlap ?
+    BLE     PLAYER_Y_PLUS_H_LTE_TO_FRG_Y    ; Less than or Equal
+    BRA     COLLISION_CHECK_DONE            ; If not no collision 
+PLAYER_Y_PLUS_H_LTE_TO_FRG_Y:               ; Less than or Equal ?
+    ADD.L   PLYR_H_INIT,    D1              ; Add Player Height to D1
+    MOVE.L  FROGETTE_Y,     D2              ; Move Worm Height to D2  
+    CMP.L   D1,             D2              ; Do they OverLap ?
+    BGE     COLLISION_FROG                  ; Collision !
+    BRA     COLLISION_CHECK_DONE            ; If not no collision    
     
-    
+COLLISION_FROG:
+    SIMHALT
 COLLISION_CHECK_DONE:                       ; No Collision Update points
     MOVE.L  ENEMY_X,        D1             
     MOVE.L  PLAYER_X,       D2
@@ -1223,6 +1306,7 @@ ENEMY_Y         DS.L    01  ; Reserve Space for Enemy Y Position
 WORM_X          DS.L    01  ; Reserve Space for Worm X Pos
 WORM_Y          DS.L    01  ; Reserve Space for Worm Y Pos
 HARD_MODE       DS.B    01  ; Reserve Space for Hard_Mode flag
+FROGETTE_FLAG   DS.B    01
 *-----------------------------------------------------------
 * Section       : Sounds
 * Description   : Sound files, which are then loaded and given
@@ -1239,6 +1323,9 @@ THUNDER_WAV     DC.B    'sounds/thunder.wav',0
 
 
     END    START                            ; last line of source
+
+
+
 
 
 
