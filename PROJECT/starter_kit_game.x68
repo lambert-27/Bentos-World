@@ -16,15 +16,15 @@ START:                              ; first instruction of program
 * Description   : Trap Codes used throughout StarterKit
 *-----------------------------------------------------------
 * Trap CODES
-TC_SCREEN   EQU         33          ; Screen size information trap code
-TC_S_SIZE   EQU         00          ; Places 0 in D1.L to retrieve Screen width and height in D1.L
+TC_SCREEN   EQU             33          ; Screen size information trap code
+TC_S_SIZE   EQU             00          ; Places 0 in D1.L to retrieve Screen width and height in D1.L
                                     ; First 16 bit Word is screen Width and Second 16 bits is screen Height
-TC_KEYCODE  EQU         19          ; Check for pressed keys
-TC_DBL_BUF  EQU         92          ; Double Buffer Screen Trap Code
-TC_BCK_SCRN EQU         94          ; Paint the offscreen buffer to current screen
-TC_CURSR_P  EQU         11          ; Trap code cursor position
+TC_KEYCODE  EQU             19          ; Check for pressed keys
+TC_DBL_BUF  EQU             92          ; Double Buffer Screen Trap Code
+TC_BCK_SCRN EQU             94          ; Paint the offscreen buffer to current screen
+TC_CURSR_P  EQU             11          ; Trap code cursor position
 
-TC_EXIT     EQU         09          ; Exit Trapcode
+TC_EXIT     EQU             09          ; Exit Trapcode
 
 *-----------------------------------------------------------
 * Section       : Charater Setup
@@ -49,7 +49,8 @@ JMP_INDEX   EQU             01      ; Player Jump Sound Index
 HIT_INDEX   EQU             02      ; Player Hit Sound Index
 WRM_INDEX   EQU             03      ; Worm Hit Sound Index
 BEGIN_INDEX EQU             04      ; Begin Sound Index
-THNDR_INDEX EQU             05  
+THNDR_INDEX EQU             05
+WIN_INDEX   EQU             06    
 
 ENMY_W_INIT EQU             16      ; Enemy initial Width
 ENMY_H_INIT EQU             16      ; Enemy initial Height
@@ -228,6 +229,7 @@ INITIALISE:
     BSR     HIT_LOAD                ; Load Hit (Collision) Sound into Memory
     BSR     WORM_LOAD               ; Load Worm Collision Sound into memory
     BSR     THUNDER_LOAD 
+    BSR     VICTORY_LOAD
    
     
     MOVE.B  #00,    HARD_MODE       ;Initialise hardmode to false
@@ -504,7 +506,9 @@ MOVE_ENTITY:
 *---------------------------------------    
 MOVE_FROGETTE:
     SUB.L   #ENTITY_SPD,        FROGETTE_X
-    BSR     CHECK_FROGETTE                  ;
+    CMP.L   #00,                FROGETTE_X
+    BLE     RESET_FROG_POSITION        ; Reset Enemy if off Screen
+    BSR     CHECK_FROGETTE                  
     BEQ     SET_FLAG
     RTS
 *---------------------------------------
@@ -540,8 +544,20 @@ RESET_ENEMY_POSITION:
 *-----------------------------------------------------------
 RESET_WORM_POSITION:
     EOR.L   D1, D1
-    MOVE.W  SCREEN_W,       D1  
+    MOVE.W  SCREEN_W,       D1 
+    ADD.L   #WRM_X_OFFSET,  D1              ; Add the offset so that worms appear infrequently
     MOVE.L  D1,         WORM_X
+    RTS
+    
+*-----------------------------------------------------------
+* Subroutine    : Reset Worm
+* Description   : Reset Worm if it passes 0 to Right of Screen
+*-----------------------------------------------------------
+RESET_FROG_POSITION:
+    EOR.L   D1, D1
+    MOVE.W  SCREEN_W,       D1
+    ADD.L   #SPAWN_FROGETTE,D1              ; Add an offset so player must wait for frogette to appear again
+    MOVE.L  D1,     FROGETTE_X
     RTS
 *-----------------------------------------------------------
 * Subroutine    : Draw
@@ -563,7 +579,8 @@ DRAW:
     BSR     DRAW_WORM                       ; Draw Worm
     BSR     DRAW_ENEMY                      ; Draw Enemy
     BSR     CHECK_HARD_MODE                 ; Check if hard mode flag is true
-    BEQ     BEGIN_HARD_MODE                 ; If true, begin new mode 
+    BEQ     BEGIN_HARD_MODE                 ; If true, begin new mode
+    BSR     DRAW_MOON 
 
     RTS                                     ; Return to subroutine
 *-----------------------------------------------------------
@@ -575,6 +592,11 @@ BEGIN_HARD_MODE:
     BSR     CHECK_HARD_MODE
 
 DRAW_HARD_MODE:
+    ; Set fill colour    
+    MOVE.L  #CLEAR,         D1
+    MOVE.B  #81,            D0
+    TRAP    #15  
+
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
     MOVE.W  #$0f08,         D1              ; Col 25, Row 08 (Roughly center)
     TRAP    #15                             ; Trap (Perform action)
@@ -607,6 +629,12 @@ DRAW_HARD_MODE:
     MOVE.B  #21,            D0              ; Task for Font Color
     TRAP    #15                             ; Trap (Perform action)
     
+    ;DODGY WAY OF HANDLING REMOVING THE HARDMODE MESSAGE AFTER A WHILE
+    CMP.L   #700,      PLAYER_SCORE
+    BGE     DRAW_RAIN
+    
+    RTS
+    
 CHECK_HARD_MODE:
     MOVE.B  HARD_MODE,      D1             
     CMP.B   #01,            D1    
@@ -618,6 +646,11 @@ CHECK_HARD_MODE:
 *-----------------------------------------------------------
 DRAW_PLYR_DATA:
     EOR.L   D1,             D1              - Ammended CLR
+    
+    ; Set fill colour    
+    MOVE.L  #CLEAR,         D1
+    MOVE.B  #81,            D0
+    TRAP    #15  
     
     ; Player Health Message
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
@@ -892,6 +925,19 @@ PLAY_THUNDER:
     MOVE    #THNDR_INDEX,   D1              ; Load Sound INDEX
     MOVE    #72,            D0              ; Play Sound
     TRAP    #15                             ; Trap (Perform action)
+    RTS      
+
+VICTORY_LOAD:
+    LEA     VICTORY_WAV,      A1              ; Load Wav File into A1
+    MOVE    #WIN_INDEX,   D1              ; Assign it INDEX
+    MOVE    #71,            D0              ; Load into memory
+    TRAP    #15                             ; Trap (Perform action)
+    RTS                                     ; Return to subroutine
+
+PLAY_VICTORY:
+    MOVE    #WIN_INDEX,   D1              ; Load Sound INDEX
+    MOVE    #72,            D0              ; Play Sound
+    TRAP    #15                             ; Trap (Perform action)
     RTS        
 
 *-----------------------------------------------------------
@@ -903,6 +949,11 @@ DRAW_PLAYER:
     MOVE.L  #GREEN,         D1              ; Set Background color
     MOVE.B  #80,            D0              ; Task for Background Color
     TRAP    #15                             ; Trap (Perform action)
+    
+    ; Set fill colour    
+    MOVE.L  #GREEN,         D1
+    MOVE.B  #81,            D0
+    TRAP    #15  
 
     ; Set X, Y, Width and Height
     MOVE.L  PLAYER_X,       D1              ; X
@@ -921,7 +972,10 @@ DRAW_FROGETTE
     MOVE.L  #FUCHSIA,       D1              ; Set Background color
     MOVE.B  #80,            D0              ; Task for Background Color
     TRAP    #15                             ; Trap (Perform action)
-
+    ; Set fill colour    
+    MOVE.L  #FUCHSIA,       D1
+    MOVE.B  #81,            D0
+    TRAP    #15  
     ; Set X, Y, Width and Height
     MOVE.L  FROGETTE_X,       D1              ; X
     MOVE.L  FROGETTE_Y,       D2              ; Y
@@ -943,7 +997,10 @@ DRAW_ENEMY:
     MOVE.L  #RED,           D1              ; Set Background color
     MOVE.B  #80,            D0              ; Task for Background Color
     TRAP    #15                             ; Trap (Perform action)
-
+    ; Set fill colour    
+    MOVE.L  #RED,         D1
+    MOVE.B  #81,            D0
+    TRAP    #15  
     ; Set X, Y, Width and Height
     MOVE.L  ENEMY_X,        D1              ; X
     MOVE.L  ENEMY_Y,        D2              ; Y
@@ -962,7 +1019,10 @@ DRAW_WORM:
     MOVE.L  #GOLD,          D1              ; Set Background color
     MOVE.B  #80,            D0              ; Task for Background Color
     TRAP    #15                             ; Trap (Perform action)
-
+    ; Set fill colour    
+    MOVE.L  #GOLD,         D1
+    MOVE.B  #81,            D0
+    TRAP    #15  
     ; Set X, Y, Width and Height
     MOVE.L  WORM_X,        D1               ; X
     MOVE.L  WORM_Y,        D2               ; Y
@@ -978,10 +1038,14 @@ DRAW_WORM:
     
 DRAW_PLATFORM:
     ; Set Pixel Colors
-    MOVE.L  #WHITE,         D1              ; Set Background color
+    MOVE.L  #GREEN,         D1              ; Set Background color
     MOVE.B  #80,            D0              ; Task for Background Color
     TRAP    #15                             ; Trap (Perform action)
-   
+        
+    ; Set fill colour    
+    MOVE.L  #DARK_GREEN,    D1
+    MOVE.B  #81,            D0
+    TRAP    #15    
     ;Platform is a rectangle, starting at (0, (screen_height / 2) + SPRITE HEIGHT) 
     ;ends at (screen width, (screen_h / 2) + SPRITE HEIGHT)
     MOVE.W  #00,            D1  ;X1
@@ -993,13 +1057,22 @@ DRAW_PLATFORM:
     MOVE.W  #SCREEN_H,      D4  ;Y2
     DIVU    #02,            D4
     ADD.W   #PLYR_H_INIT,   D4
+
     
     ; Draw Platform    
     MOVE.B  #87,            D0              ; Draw Platform
     TRAP    #15                             ; Trap (Perform action)
     RTS                                     ; Return to subroutine
     
+    
+    MOVE.L  #GREEN,         D1
+    MOVE.B  #81,            D0
+    TRAP    #15
 DRAW_RAIN:
+    ; Set fill colour    
+    MOVE.L  #CLEAR,         D1
+    MOVE.B  #81,            D0
+    TRAP    #15  
      ; Player Health Message
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
     MOVE.W  #$0202,         D1              ; Col 02, Row 02 (Top row)
@@ -1032,7 +1105,7 @@ DRAW_RAIN:
   
     MOVE    #13,            D0              ; No Line feed
     TRAP    #15                             ; Trap (Perform action)
-
+    
      ; Player Health Message
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
     MOVE.W  #$0209,         D1              ; Col 02, Row 09 (Top row)
@@ -1041,9 +1114,51 @@ DRAW_RAIN:
   
     MOVE    #13,            D0              ; No Line feed
     TRAP    #15                             ; Trap (Perform action)
-        
-  
+      
+    ;DRAW MOON ONTOP OF RAIN   
+    BSR     DRAW_MOON
     RTS
+    
+    
+DRAW_MOON:
+    ; Set fill colour    
+    MOVE.L  #CLEAR,         D1
+    MOVE.B  #81,            D0
+    TRAP    #15  
+     ; Player Health Message
+    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
+    MOVE.W  #$350A,         D1              ; Col 02, Row 02 (Top row)
+    TRAP    #15                             ; Trap (Perform action)
+    LEA     MOON1,           A1              ; Health Message
+    
+    MOVE    #13,            D0              ; No Line feed
+    TRAP    #15                             ; Trap (Perform action)
+
+    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
+    MOVE.W  #$350B,         D1              ; Col 02, Row 04 (Top row)
+    TRAP    #15                             ; Trap (Perform action)
+    LEA     MOON2,          A1              ; Health Message
+  
+    MOVE    #13,            D0              ; No Line feed
+    TRAP    #15                             ; Trap (Perform action) 
+
+    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
+    MOVE.W  #$350C,         D1              ; Col 02, Row 06 (Top row)
+    TRAP    #15                             ; Trap (Perform action)
+    LEA     MOON3,          A1              ; Health Message
+  
+    MOVE    #13,            D0              ; No Line feed
+    TRAP    #15                             ; Trap (Perform action)
+
+    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
+    MOVE.W  #$350D,         D1              ; Col 02, Row 08 (Top row)
+    TRAP    #15                             ; Trap (Perform action)
+    LEA     MOON4,          A1              ; Health Message
+  
+    MOVE    #13,            D0              ; No Line feed
+    TRAP    #15                             ; Trap (Perform action)    
+  
+    RTS    
 *-----------------------------------------------------------
 * Subroutine    : Collision Check
 * Description   : Axis-Aligned Bounding Box Collision Detection
@@ -1164,8 +1279,6 @@ PLAYER_Y_PLUS_H_LTE_TO_FRG_Y:               ; Less than or Equal ?
     BGE     COLLISION_FROG                  ; Collision !
     BRA     COLLISION_CHECK_DONE            ; If not no collision    
     
-COLLISION_FROG:
-    SIMHALT
 COLLISION_CHECK_DONE:                       ; No Collision Update points
     MOVE.L  ENEMY_X,        D1             
     MOVE.L  PLAYER_X,       D2
@@ -1178,8 +1291,6 @@ COLLISION_CHECK_DONE:                       ; No Collision Update points
     
 INCREMENT_POINTS:
     ADD.L   #POINTS,    PLAYER_SCORE        ; Move points upgrade to D1   
-
-
     RTS
 ;Returns to the calling subroutine
 END_COLLISION:
@@ -1204,6 +1315,12 @@ COLLISION_WORM:
     BRA     RESET_WORM_POSITION            ; Sets next Enemeies position back to 0, simulating a game restart for this life.
     
     RTS      
+    
+COLLISION_FROG:
+    BSR     PLAY_VICTORY
+    TRAP    #15
+    SUB.L   #16,        FROGETTE_Y
+    RTS
 *-----------------------------------------------------------
 * Subroutine    : EXIT
 * Description   : Exit message and End Game
@@ -1251,7 +1368,11 @@ WELCOME_7       DC.B    '... You know your mission, Bento',0
 WELCOME_8       DC.B    'Be careful, its late... and a storm is brewing, Lord Bento..',0
 RAIN            DC.B    '/           .     /    /   .  ,    .          ,    .     /    /  ,  /   .   ',0
 RAIN2           DC.B    '  /       .    ,     .      .          ,    .           .  .       , .   /  ',0
-RAIN3           DC.B    '.   .  ,   /   /       /    .      /     ,   ,   .        .     /      ,     ',0  
+RAIN3           DC.B    '.   .  ,   /   /       /    .      /     ,   ,   .        .     /      ,     ',0
+MOON1           DC.B    ' ,-,',0
+MOON2           DC.B    '/.(',0
+MOON3           DC.B    '\ {',0
+MOON4           DC.B    ' `-`',0
 CONTROLS_MSG    DC.B    'Press <ANY> key to continue. <SPACE> to Jump',0 ; Controls Message
 PAUSED_MSG      DC.B    'PAUSED',0                                                      ; Paused Message
 GAMEOVER_MSG    DC.B    'GAMEOVER',0                                                    ; Gameover Message
@@ -1269,7 +1390,9 @@ GREEN           EQU     $002DBD17
 RED             EQU     $000000FF
 GOLD            EQU     $0000FFFF
 WHITE           EQU     $00FFFFFF
-FUCHSIA         EQU     $00FF00FF 
+FUCHSIA         EQU     $00FF00FF
+DARK_GREEN      EQU     $00008000
+CLEAR           EQU     $00000000 
 
 *-----------------------------------------------------------
 * Section       : Screen Size
@@ -1317,12 +1440,14 @@ FROGETTE_FLAG   DS.B    01
 JUMP_WAV        DC.B    'sounds/jump.wav',0        ; Jump Sound
 RUN_WAV         DC.B    'sounds/run.wav',0         ; Run Sound
 HIT_WAV         DC.B    'sounds/hit.wav',0         ; Collision Hit
-WORM_WAV        DC.B    'sounds/worm.wav',0         ; Worm Hit
+WORM_WAV        DC.B    'sounds/worm.wav',0        ; Worm Hit
 BEGIN_WAV       DC.B    'sounds/begin.wav',0       ; Begin sound
 THUNDER_WAV     DC.B    'sounds/thunder.wav',0
+VICTORY_WAV     DC.B    'sounds/victory.wav',0  
 
 
     END    START                            ; last line of source
+
 
 
 
