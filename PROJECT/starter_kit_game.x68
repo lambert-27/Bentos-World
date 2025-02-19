@@ -234,6 +234,8 @@ INITIALISE:
     
     MOVE.B  #00,    HARD_MODE       ;Initialise hardmode to false
     MOVE.B  #00,    FROGETTE_FLAG
+    MOVE.L  #00,    HIGHEST_SCORE
+    
     ; Screen Size
     MOVE.B  #TC_SCREEN,     D0      ; access screen information
     MOVE.L  #TC_S_SIZE,     D1      ; placing 0 in D1 triggers loading screen size information
@@ -778,7 +780,7 @@ DAMAGE:
     MOVE.L  PLAYER_HEALTH,  D1              ;Move players health into D1 for an arithmetic operation
     SUB.L   #ENMY_DMG,      D1              ;Subtract the constant ENMY_DMG from D1
     CMP.L   #00,            D1              ;Check if the player has ran out of health
-    BLE     GAME_OVER                       ;If so, end game
+    BLE     EXIT                       ;If so, end game
     MOVE.L  D1,     PLAYER_HEALTH           ;Move the new health value to PLAYER_HEALTH
     BRA     RESET_ENEMY_POSITION           
 
@@ -789,52 +791,10 @@ DAMAGE_WORM:
     MOVE.L  PLAYER_HEALTH,  D1              ;Move players health into D1 for an arithmetic operation
     SUB.L   #05,            D1              ;Subtract the constant ENMY_DMG from D1
     CMP.L   #00,            D1              ;Check if the player has ran out of health
-    BLE     GAME_OVER                       ;If so, end game
+    BLE     EXIT                       ;If so, end game
     MOVE.L  D1,     PLAYER_HEALTH           ;Move the new health value to PLAYER_HEALTH       
 
     RTS                                     ;Else if, return to sender
-*-----------------------------------------------------------
-* Subroutine    : Game Over
-* Description   : Ends game
-*----------------------------------------------------------- 
-GAME_OVER:
-    ; Repaint Screen
-    MOVE.B  #TC_BCK_SCRN,   D0
-    TRAP    #15
-
-    ; Clear the screen
-    MOVE.B	#TC_CURSR_P,    D0              ; Set Cursor Position
-	MOVE.W	#$FF00,         D1              ; Clear contents
-	TRAP    #15                             ; Trap (Perform action)
-
-    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$1809,         D1              ; Col 18, Row 09 (Roughly center)
-    TRAP    #15                             ; Trap (Perform action)
-    
-    LEA     GAMEOVER_MSG,   A1
-    MOVE    #13,            D0
-    TRAP    #15
-    
-    MOVE    #05,            D0 
-    TRAP    #15
-
-    ; Player Score Message
-    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$1810,         D1              ; Col 02, Row 01
-    TRAP    #15                             ; Trap (Perform action)
-    LEA     SCORE_MSG,      A1              ; Score Message
-    MOVE    #13,            D0              ; No Line feed
-    TRAP    #15                             ; Trap (Perform action)
-
-    ; Player Score Value
-    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$4010,         D1              ; Col 09, Row 01
-    TRAP    #15                             ; Trap (Perform action)
-    MOVE.B  #03,            D0              ; Display number at D1.L
-    MOVE.L  PLAYER_SCORE,   D1              ; Move Score to D1.L
-    TRAP    #15                             ; Trap (Perform action)
-
-    SIMHALT
     
 *-----------------------------------------------------------
 * Subroutine    : Idle
@@ -998,7 +958,7 @@ DRAW_ENEMY:
     MOVE.B  #80,            D0              ; Task for Background Color
     TRAP    #15                             ; Trap (Perform action)
     ; Set fill colour    
-    MOVE.L  #RED,         D1
+    MOVE.L  #RED,           D1
     MOVE.B  #81,            D0
     TRAP    #15  
     ; Set X, Y, Width and Height
@@ -1303,9 +1263,11 @@ END_COLLISION:
 COLLISION:
     BSR     PLAY_HIT                        ; Play Hit Wav
     BSR     DAMAGE                          ; Deduct damage from health
+    MOVE.L  PLAYER_SCORE,   HIGHEST_SCORE
     MOVE.L  #00,        PLAYER_SCORE        ; Reset Player Score
     BRA     RESET_ENEMY_POSITION            ; Sets next Enemeies position back to 0, simulating a game restart for this life.
-    
+    CMP.L   #00,        PLAYER_HEALTH
+    BLE     EXIT
     RTS                                     ; Return to subroutine
 
 COLLISION_WORM:
@@ -1326,24 +1288,50 @@ COLLISION_FROG:
 * Description   : Exit message and End Game
 *-----------------------------------------------------------
 EXIT:
-    ; Repaint Screen
-    MOVE.B  #TC_BCK_SCRN,            D0
+    ; Clear the screen
+    MOVE.B	#TC_CURSR_P,    D0              ; Set Cursor Position
+	MOVE.W	#$FF00,         D1              ; Clear contents
+	TRAP    #15                             ; Trap (Perform action)
+	   
+    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
+    MOVE.W  #$2009,         D1              ; Col 18, Row 09 (Roughly center)
+    TRAP    #15                             ; Trap (Perform action)
+    
+    MOVE.L  #RED,           D1              ; Set Font color
+    MOVE.B  #21,            D0              ; Task for Font Color
+    TRAP    #15  
+    
+    LEA     GAMEOVER_MSG,   A1
+    MOVE    #13,            D0
     TRAP    #15
 
-    ; Clear the screen
-    MOVE.B	#TC_CURSR_P,    D0      ; Set Cursor Position
-	MOVE.W	#$FF00,         D1      ; Clear contents
-	TRAP    #15                     ; Trap (Perform action)
-	
 
-    ; Show if Exiting is Running
-    MOVE.B  #TC_CURSR_P,        D0          ; Set Cursor Position
-    MOVE.W  #$4001,             D1          ; Col 40, Row 1
+    MOVE.L  #WHITE,           D1              ; Set Font color
+    MOVE.B  #21,            D0              ; Task for Font Color
+    TRAP    #15  
+    
+    ; Player Score Message
+    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
+    MOVE.W  #$1E0A,         D1              ; Col 02, Row 01
     TRAP    #15                             ; Trap (Perform action)
-    LEA     EXIT_MSG,           A1          ; Exit
-    MOVE    #13,                D0          ; No Line feed
+    LEA     SCORE_MSG,      A1              ; Score Message
+    MOVE    #13,            D0              ; No Line feed
+    TRAP    #15                             ; Trap (Perform action)
+
+    ; Player Score Value
+    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
+    MOVE.W  #$280A,         D1              ; Col 09, Row 01
+    TRAP    #15                             ; Trap (Perform action)
+    MOVE.B  #03,            D0              ; Display number at D1.L
+    MOVE.L  HIGHEST_SCORE,  D1              ; Move Score to D1.L
     TRAP    #15                             ; Trap (Perform action)
    
+    ; Enable back buffer
+    MOVE.B  #94,        D0          
+    TRAP    #15
+    
+    MOVE.B  #TC_EXIT,   D0          ; Exit Code
+    TRAP    #15                     ; Trap (Perform action)
  
     SIMHALT
 
@@ -1369,10 +1357,10 @@ WELCOME_8       DC.B    'Be careful, its late... and a storm is brewing, Lord Be
 RAIN            DC.B    '/           .     /    /   .  ,    .          ,    .     /    /  ,  /   .   ',0
 RAIN2           DC.B    '  /       .    ,     .      .          ,    .           .  .       , .   /  ',0
 RAIN3           DC.B    '.   .  ,   /   /       /    .      /     ,   ,   .        .     /      ,     ',0
-MOON1           DC.B    ' ,-,',0
-MOON2           DC.B    '/.(',0
-MOON3           DC.B    '\ {',0
-MOON4           DC.B    ' `-`',0
+MOON1           DC.B    '      ~*    ,-,     *',0
+MOON2           DC.B    '    *      /.(   ~*',0
+MOON3           DC.B    '*          \ {         *',0
+MOON4           DC.B    '    *       `-`    ~*',0
 CONTROLS_MSG    DC.B    'Press <ANY> key to continue. <SPACE> to Jump',0 ; Controls Message
 PAUSED_MSG      DC.B    'PAUSED',0                                                      ; Paused Message
 GAMEOVER_MSG    DC.B    'GAMEOVER',0                                                    ; Gameover Message
@@ -1430,6 +1418,8 @@ WORM_X          DS.L    01  ; Reserve Space for Worm X Pos
 WORM_Y          DS.L    01  ; Reserve Space for Worm Y Pos
 HARD_MODE       DS.B    01  ; Reserve Space for Hard_Mode flag
 FROGETTE_FLAG   DS.B    01
+
+HIGHEST_SCORE   DS.L    01
 *-----------------------------------------------------------
 * Section       : Sounds
 * Description   : Sound files, which are then loaded and given
@@ -1447,6 +1437,7 @@ VICTORY_WAV     DC.B    'sounds/victory.wav',0
 
 
     END    START                            ; last line of source
+
 
 
 
