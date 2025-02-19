@@ -34,8 +34,14 @@ TC_EXIT     EQU             09          ; Exit Trapcode
 PLYR_W_INIT EQU             16      ; Players initial Width
 PLYR_H_INIT EQU             16      ; Players initial Height
 
-FRG_W_INIT  EQU             16
-FRG_H_INIT  EQU             16
+FRG_W_INIT  EQU             16      ; Frogettes initial Width
+FRG_H_INIT  EQU             16      ; Frogettes initial Height
+
+WFRG_W_INIT  EQU            64      ; Final Sprites initial Width
+WFRG_H_INIT  EQU            64      ; Final Spritesinitial Height
+
+EYE_W_INIT  EQU             08      ; Eyes initial Width
+EYE_H_INIT  EQU             08      ; Eyes initial Height
 
 PLYR_DFLT_V EQU             00      ; Default Player Velocity
 PLYR_JUMP_V EQU             -20     ; Player Jump Velocity
@@ -49,8 +55,8 @@ JMP_INDEX   EQU             01      ; Player Jump Sound Index
 HIT_INDEX   EQU             02      ; Player Hit Sound Index
 WRM_INDEX   EQU             03      ; Worm Hit Sound Index
 BEGIN_INDEX EQU             04      ; Begin Sound Index
-THNDR_INDEX EQU             05
-WIN_INDEX   EQU             06    
+THNDR_INDEX EQU             05      ; Thunder Sound Index
+WIN_INDEX   EQU             06      ; Win Sound Index 
 
 ENMY_W_INIT EQU             16      ; Enemy initial Width
 ENMY_H_INIT EQU             16      ; Enemy initial Height
@@ -89,7 +95,7 @@ WELCOME_SCREEN:
     MOVE    #13,            D0
     TRAP    #15
     MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
-    MOVE.W  #$1110,         D1      ; Col 11, Row 10 (Next line)
+    MOVE.W  #$0810,         D1      ; Col 08, Row 10 (Next line)
     TRAP    #15                     ; Trap (Perform action)
     LEA     CONTROLS_MSG,   A1
     MOVE    #13,            D0
@@ -228,13 +234,13 @@ INITIALISE:
     BSR     JUMP_LOAD               ; Load Jump Sound into Memory
     BSR     HIT_LOAD                ; Load Hit (Collision) Sound into Memory
     BSR     WORM_LOAD               ; Load Worm Collision Sound into memory
-    BSR     THUNDER_LOAD 
-    BSR     VICTORY_LOAD
-   
+    BSR     THUNDER_LOAD            ; Load Thunder sound
+    BSR     VICTORY_LOAD            ; Load victory sound
+
     
     MOVE.B  #00,    HARD_MODE       ;Initialise hardmode to false
-    MOVE.B  #00,    FROGETTE_FLAG
-    MOVE.L  #00,    HIGHEST_SCORE
+    MOVE.B  #00,    FROGETTE_FLAG   ;Initialise frogette to false
+    MOVE.L  #00,    HIGHEST_SCORE   ;Initialise highest score to 0
     
     ; Screen Size
     MOVE.B  #TC_SCREEN,     D0      ; access screen information
@@ -256,6 +262,7 @@ INITIALISE:
     DIVU    #02,            D1          ; divide by 2 for center on Y Axis
     MOVE.L  D1,             PLAYER_Y    ; Players Y Position
     
+    ;Initialise Frogette Pos
     EOR.L   D1, D1                      - Ammended CLR (EOR = inverter) So, using D1 as the operand on itself flips the bits that are 1 to 0
     MOVE.W  SCREEN_W,       D1          ; Place Screen width in D1
     DIVU    #02,            D1          ; divide by 2 for center on X Axis
@@ -310,9 +317,88 @@ INITIALISE:
     MOVE.W  SCREEN_H,       D1
     DIVU    #02,            D1          ;Gets exactly half the screen
     ADD.L   #WRM_Y_OFFSET,  D1          ;Offset the y-pos of worm so they are initially hidden
-    MOVE.L  D1,             WORM_Y
+    MOVE.L  D1,             WORM_Y 
 
+*--------------------------------------------------------------
+; The Following initialises the sprites for the END SCENE
+*-------------------------------------------------------------
+; Initialise Player at the center of the screen
+    EOR.L   D1, D1                      - Ammended CLR (EOR = inverter) So, using D1 as the operand on itself flips the bits that are 1 to 0
+    MOVE.W  SCREEN_W,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on X Axis
+    MOVE.L  D1,             WPLAYER_X    ; Players X Position
 
+    EOR.L   D1, D1                      - Ammended CLR
+    MOVE.W  SCREEN_H,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on Y Axis
+    MOVE.L  D1,             WPLAYER_Y    ; Players Y Position
+; Initialise Frogette at the center of the screen
+    EOR.L   D1, D1                      - Ammended CLR (EOR = inverter) So, using D1 as the operand on itself flips the bits that are 1 to 0
+    MOVE.W  SCREEN_W,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on X Axis
+    ADD.L   #WFRG_W_INIT,   D1          ; Add the width of the frog to get its place
+    MOVE.L  D1,             WFROG_X    ; Players X Position
+
+    EOR.L   D1, D1                      - Ammended CLR
+    MOVE.W  SCREEN_H,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on Y Axis
+    MOVE.L  D1,             WFROG_Y    ; Players Y Position
+    
+; Initialise Frogettes Eyes for the Final Screen
+; Frogette Left Eye
+    EOR.L   D1, D1                      - Ammended CLR (EOR = inverter) So, using D1 as the operand on itself flips the bits that are 1 to 0
+    MOVE.W  SCREEN_W,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on X Axis
+    ADD.L   #EYE_W_INIT,    D1          ; Add the width of the eye to get its place on x-axis
+    MOVE.L  D1,             FRG_EYE_1_X    ; Players X Position
+
+    EOR.L   D1, D1                      - Ammended CLR
+    MOVE.W  SCREEN_H,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on Y Axis
+    SUB.L   #WFRG_H_INIT,   D1          ; Sub the height of the frog to get the y pos of the eye
+    MOVE.L  D1,             FRG_EYE_1_Y    ; Players Y Position   
+
+; Frogette Right Eye
+    EOR.L   D1, D1                      - Ammended CLR (EOR = inverter) So, using D1 as the operand on itself flips the bits that are 1 to 0
+    MOVE.W  SCREEN_W,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on X Axis
+    ADD.L   #WFRG_W_INIT,   D1          ; Add the width of the eye to get its place on x-axis
+    MOVE.L  D1,             FRG_EYE_2_X    ; Players X Position
+
+    EOR.L   D1, D1                      - Ammended CLR
+    MOVE.W  SCREEN_H,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on Y Axis
+    SUB.L   #WFRG_H_INIT,   D1          ; Sub the height of the frog to get the y pos of the eye
+    MOVE.L  D1,             FRG_EYE_2_Y    ; Players Y Position  
+    
+; Initialise Players Eyes for the Final Screen
+; Player Left  Eye
+    EOR.L   D1, D1                      - Ammended CLR (EOR = inverter) So, using D1 as the operand on itself flips the bits that are 1 to 0
+    MOVE.W  SCREEN_W,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on X Axis
+    MOVE.L  D1,             PLYR_EYE_1_X    ; Players X Position
+
+    EOR.L   D1, D1                      - Ammended CLR
+    MOVE.W  SCREEN_H,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on Y Axis
+    SUB.L   #WFRG_H_INIT,   D1          ; Subtract the height to get ypos
+    MOVE.L  D1,             PLYR_EYE_1_Y    ; Players Y Position   
+
+; Player Right  Eye
+    EOR.L   D1, D1                      - Ammended CLR (EOR = inverter) So, using D1 as the operand on itself flips the bits that are 1 to 0
+    MOVE.W  SCREEN_W,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on X Axis
+    SUB.L   #WFRG_W_INIT,   D1          ; Subtract width of frog to get offset of sprite 
+    ADD.L   #EYE_W_INIT,    D1          ; Then subtract width of eye for x pos
+    MOVE.L  D1,             PLYR_EYE_2_X    ; Players X Position
+
+    EOR.L   D1, D1                      - Ammended CLR
+    MOVE.W  SCREEN_H,       D1          ; Place Screen width in D1
+    DIVU    #02,            D1          ; divide by 2 for center on Y Axis
+    SUB.L   #WFRG_H_INIT,   D1          ; Sub the sprite height for y pos
+    MOVE.L  D1,             PLYR_EYE_2_Y    ; Players Y Position  
+    
+    
     ; Enable the screen back buffer(see easy 68k help)
 	MOVE.B  #TC_DBL_BUF,    D0          ; 92 Enables Double Buffer
     MOVE.B  #17,            D1          ; Combine Tasks
@@ -322,9 +408,6 @@ INITIALISE:
     MOVE.B  #TC_CURSR_P,    D0          ; Set Cursor Position
 	MOVE.W  #$FF00,         D1          ; Fill Screen Clear
 	TRAP	#15                         ; Trap (Perform action)
-	
-
-    
 
 *-----------------------------------------------------------
 * Subroutine    : Game
@@ -780,7 +863,7 @@ DAMAGE:
     MOVE.L  PLAYER_HEALTH,  D1              ;Move players health into D1 for an arithmetic operation
     SUB.L   #ENMY_DMG,      D1              ;Subtract the constant ENMY_DMG from D1
     CMP.L   #00,            D1              ;Check if the player has ran out of health
-    BLE     EXIT                       ;If so, end game
+    BLE     EXIT                            ;If so, end game
     MOVE.L  D1,     PLAYER_HEALTH           ;Move the new health value to PLAYER_HEALTH
     BRA     RESET_ENEMY_POSITION           
 
@@ -791,7 +874,7 @@ DAMAGE_WORM:
     MOVE.L  PLAYER_HEALTH,  D1              ;Move players health into D1 for an arithmetic operation
     SUB.L   #05,            D1              ;Subtract the constant ENMY_DMG from D1
     CMP.L   #00,            D1              ;Check if the player has ran out of health
-    BLE     EXIT                       ;If so, end game
+    BLE     EXIT                            ;If so, end game
     MOVE.L  D1,     PLAYER_HEALTH           ;Move the new health value to PLAYER_HEALTH       
 
     RTS                                     ;Else if, return to sender
@@ -875,7 +958,7 @@ PLAY_BEGIN:
     RTS    
 
 THUNDER_LOAD:
-    LEA     THUNDER_WAV,      A1              ; Load Wav File into A1
+    LEA     THUNDER_WAV,    A1              ; Load Wav File into A1
     MOVE    #THNDR_INDEX,   D1              ; Assign it INDEX
     MOVE    #71,            D0              ; Load into memory
     TRAP    #15                             ; Trap (Perform action)
@@ -888,14 +971,14 @@ PLAY_THUNDER:
     RTS      
 
 VICTORY_LOAD:
-    LEA     VICTORY_WAV,      A1              ; Load Wav File into A1
-    MOVE    #WIN_INDEX,   D1              ; Assign it INDEX
+    LEA     VICTORY_WAV,    A1              ; Load Wav File into A1
+    MOVE    #WIN_INDEX,     D1              ; Assign it INDEX
     MOVE    #71,            D0              ; Load into memory
     TRAP    #15                             ; Trap (Perform action)
     RTS                                     ; Return to subroutine
 
 PLAY_VICTORY:
-    MOVE    #WIN_INDEX,   D1              ; Load Sound INDEX
+    MOVE    #WIN_INDEX,     D1              ; Load Sound INDEX
     MOVE    #72,            D0              ; Play Sound
     TRAP    #15                             ; Trap (Perform action)
     RTS        
@@ -944,8 +1027,8 @@ DRAW_FROGETTE
     MOVE.L  FROGETTE_Y,       D4 
     ADD.L   #FRG_H_INIT,   D4              ; Height
     
-    ; Draw Player
-    MOVE.B  #87,            D0              ; Draw Player
+    ; Draw Frogette
+    MOVE.B  #87,            D0              ; Draw Frogette
     TRAP    #15                             ; Trap (Perform action)
     RTS                                     ; Return to subroutine
 *-----------------------------------------------------------
@@ -1008,26 +1091,21 @@ DRAW_PLATFORM:
     TRAP    #15    
     ;Platform is a rectangle, starting at (0, (screen_height / 2) + SPRITE HEIGHT) 
     ;ends at (screen width, (screen_h / 2) + SPRITE HEIGHT)
-    MOVE.W  #00,            D1  ;X1
-    MOVE.W  SCREEN_H,       D2  ;Y1
+    MOVE.W  #00,            D1              ;X1
+    MOVE.W  SCREEN_H,       D2              ;Y1
     DIVU    #02,            D2
     ADD.W   #PLYR_H_INIT,   D2
     
-    MOVE.W  #SCREEN_W,      D3  ;X2
-    MOVE.W  #SCREEN_H,      D4  ;Y2
+    MOVE.W  #SCREEN_W,      D3              ;X2
+    MOVE.W  #SCREEN_H,      D4              ;Y2
     DIVU    #02,            D4
     ADD.W   #PLYR_H_INIT,   D4
 
-    
     ; Draw Platform    
     MOVE.B  #87,            D0              ; Draw Platform
     TRAP    #15                             ; Trap (Perform action)
-    RTS                                     ; Return to subroutine
+    RTS                                     ; Return to subroutine 
     
-    
-    MOVE.L  #GREEN,         D1
-    MOVE.B  #81,            D0
-    TRAP    #15
 DRAW_RAIN:
     ; Set fill colour    
     MOVE.L  #CLEAR,         D1
@@ -1084,10 +1162,10 @@ DRAW_MOON:
     ; Set fill colour    
     MOVE.L  #CLEAR,         D1
     MOVE.B  #81,            D0
-    TRAP    #15  
-     ; Player Health Message
+    TRAP    #15 
+                            
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$350A,         D1              ; Col 02, Row 02 (Top row)
+    MOVE.W  #$350A,         D1              ; Col 53 Row 10 (Top row)
     TRAP    #15                             ; Trap (Perform action)
     LEA     MOON1,           A1              ; Health Message
     
@@ -1095,7 +1173,7 @@ DRAW_MOON:
     TRAP    #15                             ; Trap (Perform action)
 
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$350B,         D1              ; Col 02, Row 04 (Top row)
+    MOVE.W  #$350B,         D1              ; Col 53, Row 11 (Top row)
     TRAP    #15                             ; Trap (Perform action)
     LEA     MOON2,          A1              ; Health Message
   
@@ -1103,7 +1181,7 @@ DRAW_MOON:
     TRAP    #15                             ; Trap (Perform action) 
 
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$350C,         D1              ; Col 02, Row 06 (Top row)
+    MOVE.W  #$350C,         D1              ; Col 53, Row 12 (Top row)
     TRAP    #15                             ; Trap (Perform action)
     LEA     MOON3,          A1              ; Health Message
   
@@ -1111,14 +1189,145 @@ DRAW_MOON:
     TRAP    #15                             ; Trap (Perform action)
 
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$350D,         D1              ; Col 02, Row 08 (Top row)
+    MOVE.W  #$350D,         D1              ; Col 53, Row 13 (Top row)
     TRAP    #15                             ; Trap (Perform action)
     LEA     MOON4,          A1              ; Health Message
   
     MOVE    #13,            D0              ; No Line feed
     TRAP    #15                             ; Trap (Perform action)    
+
   
-    RTS    
+    RTS  
+*-----------------------------------------------------------------------  
+;Subroutine to Draw a Nice Final Scene when Player reaches objective    
+*-----------------------------------------------------------------------  
+DRAW_FINAL_SCENE:  
+    BSR     DRAW_PLATFORM
+    BSR     DRAW_MOON
+    BSR     DRAW_PLYR_DATA
+    	   
+    MOVE.B  #TC_CURSR_P,    D0                  ; Set Cursor Position
+    MOVE.W  #$0405,         D1                  ; Col 18, Row 09 (Roughly center)
+    TRAP    #15                                 ; Trap (Perform action)
+        
+    LEA     WIN_MSG,        A1
+    MOVE    #13,            D0
+    TRAP    #15
+    
+    MOVE.B  #TC_CURSR_P,    D0                  ; Set Cursor Position
+    MOVE.W  #$0906,         D1                  ; Col 18, Row 09 (Roughly center)
+    TRAP    #15                                 ; Trap (Perform action)
+        
+    LEA     CONTINUE_MSG,        A1
+    MOVE    #13,            D0
+    TRAP    #15
+    
+    ; Set Pixel Colors
+    MOVE.L  #GREEN,             D1              ; Set Background color
+    MOVE.B  #80,                D0              ; Task for Background Color
+    TRAP    #15                                 ; Trap (Perform action)
+    
+    ; Set fill colour    
+    MOVE.L  #GREEN,             D1
+    MOVE.B  #81,                D0
+    TRAP    #15  
+
+    ; Set X, Y, Width and Height
+    MOVE.L  WPLAYER_X,          D1              ; X
+    MOVE.L  WPLAYER_Y,          D2              ; Y
+    MOVE.L  WPLAYER_X,          D3
+    SUB.L   #WFRG_W_INIT,       D3              ; Width
+    MOVE.L  WPLAYER_Y,          D4 
+    SUB.L   #WFRG_H_INIT,       D4              ; Height
+
+    ; Player   
+    MOVE.B  #87,                D0              
+    TRAP    #15                                 ; Trap (Perform action)
+    
+    ; Player Eye 1
+    MOVE.L  PLYR_EYE_1_X,       D1              ; X
+    MOVE.L  PLYR_EYE_1_Y,       D2              ; Y
+    MOVE.L  PLYR_EYE_1_X,       D3
+    SUB.L   #EYE_W_INIT,        D3              ; Width
+    MOVE.L  PLYR_EYE_1_y,       D4 
+    SUB.L   #EYE_H_INIT,        D4              ; Height
+
+
+    ; Draw Eye    
+    MOVE.B  #87,                D0              
+    TRAP    #15                                 ; Trap (Perform action)
+    
+    ; Player Eye 2    
+    MOVE.L  PLYR_EYE_2_X,       D1              ; X
+    MOVE.L  PLYR_EYE_2_Y,       D2              ; Y
+    MOVE.L  PLYR_EYE_2_X,       D3
+    SUB.L   #EYE_W_INIT,        D3              ; Width
+    MOVE.L  PLYR_EYE_2_Y,       D4 
+    SUB.L   #EYE_H_INIT,        D4              ; Height
+
+
+    ; Draw Eye    
+    MOVE.B  #87,                D0              ; Draw Enemy
+    TRAP    #15                                 ; Trap (Perform action)
+
+     
+    
+    ; Set Pixel Colors
+    MOVE.L  #FUCHSIA,           D1              ; Set Background color
+    MOVE.B  #80,                D0              ; Task for Background Color
+    TRAP    #15                                 ; Trap (Perform action)
+    ; Set fill colour    
+    MOVE.L  #FUCHSIA,           D1
+    MOVE.B  #81,                D0
+    TRAP    #15  
+    
+    ; Set X, Y, Width and Height
+    MOVE.L  WFROG_X,            D1              ; X
+    MOVE.L  WFROG_Y,            D2              ; Y
+    MOVE.L  WFROG_X,            D3
+    SUB.L   #WFRG_W_INIT,       D3              ; Width
+    MOVE.L  WFROG_Y,            D4 
+    SUB.L   #WFRG_H_INIT,       D4              ; Height
+          
+    ; Draw Frogette 
+    MOVE.B  #87,                D0              ; Draw 
+    TRAP    #15                                 ; Trap (Perform action)  
+
+    ; Frogette Eye 1
+    MOVE.L  FRG_EYE_1_X,        D1              ; X
+    MOVE.L  FRG_EYE_1_Y,        D2              ; Y
+    MOVE.L  FRG_EYE_1_X,        D3
+    SUB.L   #EYE_W_INIT,        D3              ; Width
+    MOVE.L  FRG_EYE_1_y,        D4 
+    SUB.L   #EYE_H_INIT,        D4              ; Height
+
+
+
+    MOVE.B  #87,                D0              ; Draw Eye
+    TRAP    #15                                 ; Trap (Perform action)
+    
+    ; Frogette Eye 2
+    MOVE.L  FRG_EYE_2_X,        D1              ; X
+    MOVE.L  FRG_EYE_2_Y,        D2              ; Y
+    MOVE.L  FRG_EYE_2_X,        D3
+    SUB.L   #EYE_W_INIT,        D3              ; Width
+    MOVE.L  FRG_EYE_2_Y,        D4 
+    SUB.L   #EYE_H_INIT,        D4              ; Height
+    
+    
+
+    MOVE.B  #87,                D0              ; Draw 
+    TRAP    #15                                 ; Trap (Perform action)
+    
+    ; Set fill colour    
+    MOVE.L  #CLEAR,             D1
+    MOVE.B  #81,                D0
+    TRAP    #15  
+  
+    BSR     PLAY_VICTORY
+    
+    RTS          
+    
 *-----------------------------------------------------------
 * Subroutine    : Collision Check
 * Description   : Axis-Aligned Bounding Box Collision Detection
@@ -1215,26 +1424,26 @@ PLAYER_Y_PLUS_H_LTE_TO_WORM_Y:              ; Less than or Equal ?
 PLAYER_X_LTE_TO_FRG_X_PLUS_W:
     MOVE.L  PLAYER_X,       D1              ; Move Player X to D1
     MOVE.L  FROGETTE_X,     D2              ; Move Worm X to D2
-    ADD.L   FRG_W_INIT,     D2              ; Set Worm width X + Width
+    ADD.L   FRG_W_INIT,     D2              ; Set Frog width X + Width
     CMP.L   D1,             D2              ; Do the Overlap ?
     BLE     PLAYER_X_PLUS_W_LTE_TO_FRG_X    ; Less than or Equal ?
     BRA     COLLISION_CHECK_DONE            ; If not no collision
 PLAYER_X_PLUS_W_LTE_TO_FRG_X:               ; Check player is not  
     ADD.L   PLYR_W_INIT,    D1              ; Move Player Width to D1
-    MOVE.L  FROGETTE_X,     D2              ; Move Worm X to D2
+    MOVE.L  FROGETTE_X,     D2              ; Move Frog X to D2
     CMP.L   D1,             D2              ; Do they OverLap ?
     BGE     PLAYER_Y_LTE_TO_FRG_Y_PLUS_H    ; Less than or Equal
     BRA     COLLISION_CHECK_DONE            ; If not no collision   
 PLAYER_Y_LTE_TO_FRG_Y_PLUS_H:     
     MOVE.L  PLAYER_Y,       D1              ; Move Player Y to D1
     MOVE.L  FROGETTE_Y,     D2              ; Move Worm Y to D2
-    ADD.L   FRG_H_INIT,     D2              ; Set Worm Height to D2
+    ADD.L   FRG_H_INIT,     D2              ; Set Frog Height to D2
     CMP.L   D1,             D2              ; Do they Overlap ?
     BLE     PLAYER_Y_PLUS_H_LTE_TO_FRG_Y    ; Less than or Equal
     BRA     COLLISION_CHECK_DONE            ; If not no collision 
 PLAYER_Y_PLUS_H_LTE_TO_FRG_Y:               ; Less than or Equal ?
     ADD.L   PLYR_H_INIT,    D1              ; Add Player Height to D1
-    MOVE.L  FROGETTE_Y,     D2              ; Move Worm Height to D2  
+    MOVE.L  FROGETTE_Y,     D2              ; Move Frog Height to D2  
     CMP.L   D1,             D2              ; Do they OverLap ?
     BGE     COLLISION_FROG                  ; Collision !
     BRA     COLLISION_CHECK_DONE            ; If not no collision    
@@ -1271,18 +1480,29 @@ COLLISION:
     RTS                                     ; Return to subroutine
 
 COLLISION_WORM:
-    BSR     PLAY_WORM                    ; Play Worm Wav
+    BSR     PLAY_WORM                       ; Play Worm Wav
     BSR     DAMAGE_WORM
     ADD.L   #640,       PLAYER_SCORE        ; Add points to score
-    BRA     RESET_WORM_POSITION            ; Sets next Enemeies position back to 0, simulating a game restart for this life.
+    BRA     RESET_WORM_POSITION             ; Sets next Enemeies position back to 0, simulating a game restart for this life.
     
     RTS      
     
 COLLISION_FROG:
-    BSR     PLAY_VICTORY
+     ; Clear the screen
+    MOVE.B	#TC_CURSR_P,    D0              ; Set Cursor Position
+	MOVE.W	#$FF00,         D1              ; Clear contents
+	TRAP    #15                             ; Trap (Perform action)
+	   
+    BSR     DRAW_FINAL_SCENE
+   
+    ; Enable back buffer
+    MOVE.B  #94,        D0          
     TRAP    #15
-    SUB.L   #16,        FROGETTE_Y
-    RTS
+    
+    MOVE.B  #TC_EXIT,   D0          ; Exit Code
+    TRAP    #15                     ; Trap (Perform action)
+ 
+    SIMHALT
 *-----------------------------------------------------------
 * Subroutine    : EXIT
 * Description   : Exit message and End Game
@@ -1294,7 +1514,7 @@ EXIT:
 	TRAP    #15                             ; Trap (Perform action)
 	   
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$2009,         D1              ; Col 18, Row 09 (Roughly center)
+    MOVE.W  #$2009,         D1              ; Col 32, Row 09 (Roughly center)
     TRAP    #15                             ; Trap (Perform action)
     
     MOVE.L  #RED,           D1              ; Set Font color
@@ -1312,7 +1532,7 @@ EXIT:
     
     ; Player Score Message
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$1E0A,         D1              ; Col 02, Row 01
+    MOVE.W  #$1E0A,         D1              ; Col 30, Row 10
     TRAP    #15                             ; Trap (Perform action)
     LEA     SCORE_MSG,      A1              ; Score Message
     MOVE    #13,            D0              ; No Line feed
@@ -1320,7 +1540,7 @@ EXIT:
 
     ; Player Score Value
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$280A,         D1              ; Col 09, Row 01
+    MOVE.W  #$280A,         D1              ; Col 40, Row 10
     TRAP    #15                             ; Trap (Perform action)
     MOVE.B  #03,            D0              ; Display number at D1.L
     MOVE.L  HIGHEST_SCORE,  D1              ; Move Score to D1.L
@@ -1361,12 +1581,14 @@ MOON1           DC.B    '      ~*    ,-,     *',0
 MOON2           DC.B    '    *      /.(   ~*',0
 MOON3           DC.B    '*          \ {         *',0
 MOON4           DC.B    '    *       `-`    ~*',0
-CONTROLS_MSG    DC.B    'Press <ANY> key to continue. <SPACE> to Jump',0 ; Controls Message
+CONTROLS_MSG    DC.B    'Press <ANY> key to continue. <SPACE> to Jump. <P> to Pause',0 ; Controls Message
 PAUSED_MSG      DC.B    'PAUSED',0                                                      ; Paused Message
 GAMEOVER_MSG    DC.B    'GAMEOVER',0                                                    ; Gameover Message
 HARDMODE_MSG    DC.B    'Oh no! Acid rain has flooded worms to the top!!!',0            ; Hardmode Message
 HARDMODE_MSG2   DC.B    'The worms might be useful... but the acid rain has made them ',0
-SPICY_MSG       DC.B    's p i c y',0 
+SPICY_MSG       DC.B    's p i c y',0
+WIN_MSG         DC.B    'Elated, Bento and Frogette jumped with joy as they met again',0
+CONTINUE_MSG    DC.B    'Would you like to continue with Endless Mode? y/n',0 
 
 EXIT_MSG        DC.B    'Exiting....', 0    ; Exit Message
 
@@ -1402,8 +1624,8 @@ CURRENT_KEY     DS.L    01  ; Reserve Space for Current Key Pressed
 PLAYER_X        DS.L    01  ; Reserve Space for Player X Position
 PLAYER_Y        DS.L    01  ; Reserve Space for Player Y Position
 
-FROGETTE_X      DS.L    01
-FROGETTE_Y      DS.L    01
+FROGETTE_X      DS.L    01  ; Reserve Space for Frogette X Position
+FROGETTE_Y      DS.L    01  ; Reserve Space for Frogette Y Position
 
 PLAYER_SCORE    DS.L    01  ; Reserve Space for Player Score
 PLAYER_HEALTH   DS.L    01  ; Reserve Space for Player Health
@@ -1415,11 +1637,29 @@ ENEMY_X         DS.L    01  ; Reserve Space for Enemy X Position
 ENEMY_Y         DS.L    01  ; Reserve Space for Enemy Y Position
 
 WORM_X          DS.L    01  ; Reserve Space for Worm X Pos
-WORM_Y          DS.L    01  ; Reserve Space for Worm Y Pos
-HARD_MODE       DS.B    01  ; Reserve Space for Hard_Mode flag
-FROGETTE_FLAG   DS.B    01
+WORM_Y          DS.L    01  ; Reserve Space for Worm Y Po
 
-HIGHEST_SCORE   DS.L    01
+WFROG_X         DS.L    01  ; Reserve space for Frogette Pos for larger sprites for end scene
+WFROG_Y         DS.L    01
+WPLAYER_X       DS.L    01  ; Reserve space for Player Pos for larger sprites for end scene
+WPLAYER_Y       DS.L    01
+
+;Frog eyes (Frogette)
+FRG_EYE_1_X     DS.L    01  ; Larger sprites also have two frog eyes each
+FRG_EYE_1_Y     DS.L    01
+FRG_EYE_2_X     DS.L    01
+FRG_EYE_2_Y     DS.L    01
+;Frog eyes (Player)
+PLYR_EYE_1_X     DS.L   01
+PLYR_EYE_1_Y     DS.L   01
+PLYR_EYE_2_X     DS.L   01
+PLYR_EYE_2_Y     DS.L   01
+
+
+HARD_MODE       DS.B    01  ; Reserve Space for Hard_Mode flag
+FROGETTE_FLAG   DS.B    01  ; Flag used to determine if Frogette has spawned yet
+
+HIGHEST_SCORE   DS.L    01  ; Most recent score is placed here
 *-----------------------------------------------------------
 * Section       : Sounds
 * Description   : Sound files, which are then loaded and given
@@ -1437,6 +1677,7 @@ VICTORY_WAV     DC.B    'sounds/victory.wav',0
 
 
     END    START                            ; last line of source
+
 
 
 
