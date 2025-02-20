@@ -1,10 +1,14 @@
 *-----------------------------------------------------------
-* Title      : Game Starter Kit - Bentos World
+* Title      : Bentos World
 * Written by : Philip Bourke + Mark Lambert (C00192497)
-* Date       : 05/02/2025 - 16/02/2025
+* Date       : 05/02/2025 - 28/02/2025
 * Description: Project 1 Assembly - Tiny World - BENTO'S WORLD
 *-----------------------------------------------------------
-;WHEN ENOUGH COINS COLLECTED (10000 POINTS) CUBE GETS BIGGER?
+;MOVE FLAGS TO POINTERS - 
+* FROGETTE FLAG
+* WORM FLAG (HARDMODE)
+* HARDMODE_MSG FLAG
+* ENDLESSMODE FLAG
 ;SOUNDS RETRIEVED FROM STREETS OF RAGE 1 AND 2 SFX
 ;https://www.sounds-resource.com/genesis_32x_scd/streetsofrage/sound/7357/
 ;https://www.sounds-resource.com/genesis_32x_scd/streetsrage2/sound/359/
@@ -85,11 +89,13 @@ POINTS      EQU             01      ; Points added
 SPACEBAR    EQU             $20     ; Spacebar ASCII Keycode
 ESCAPE      EQU             $1B     ; Escape ASCII Keycode
 P           EQU             $50     ; P ASCII code
+Y           EQU             $49
+N           EQU             $50
 
 
 WELCOME_SCREEN:
     MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
-    MOVE.W  #$1809,         D1      ; Col 18, Row 09 (Roughly center)
+    MOVE.W  #$1809,         D1      ; Col 18, Row 09 
     TRAP    #15                     ; Trap (Perform action)
     LEA     WELCOME_MSG,    A1
     MOVE    #13,            D0
@@ -120,7 +126,7 @@ MISSION_DETAIL:
 	
 	; LINE ONE
     MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
-    MOVE.W  #$1009,         D1      ; Col 10, Row 09 (Roughly center)
+    MOVE.W  #$1009,         D1      ; Col 10, Row 09 
     TRAP    #15                     ; Trap (Perform action)
     LEA     WELCOME_1,      A1
     MOVE    #14,            D0
@@ -198,7 +204,7 @@ LETS_GO:
 	
 	; LINE ONE
     MOVE.B  #TC_CURSR_P,    D0      ; Set Cursor Position
-    MOVE.W  #$1209,         D1      ; Col 12, Row 09 (Roughly center)
+    MOVE.W  #$1209,         D1      ; Col 12, Row 09
     TRAP    #15                     ; Trap (Perform action)
     LEA     WELCOME_7,      A1
     MOVE    #14,            D0
@@ -486,7 +492,7 @@ PAUSE:
 	TRAP    #15                         ; Trap (Perform action)
 
     MOVE.B  #TC_CURSR_P,    D0          ; Set Cursor Position
-    MOVE.W  #$2510,         D1          ; Col 25, Row 10 (Roughly center)
+    MOVE.W  #$2510,         D1          ; Col 25, Row 10
     TRAP    #15                         ; Trap (Perform action)
     
     LEA     PAUSED_MSG,     A1
@@ -683,7 +689,7 @@ DRAW_HARD_MODE:
     TRAP    #15  
 
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$0f08,         D1              ; Col 25, Row 08 (Roughly center)
+    MOVE.W  #$0f08,         D1              ; Col 15, Row 08
     TRAP    #15                             ; Trap (Perform action)
     
     LEA     HARDMODE_MSG,   A1
@@ -691,7 +697,7 @@ DRAW_HARD_MODE:
     TRAP    #15
     
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$0709,         D1              ; Col 25, Row 08 (Roughly center)
+    MOVE.W  #$0709,         D1              ; Col 07, Row 09 
     TRAP    #15                             ; Trap (Perform action)
     
     LEA     HARDMODE_MSG2,  A1
@@ -706,7 +712,7 @@ DRAW_HARD_MODE:
     MOVE.W  #$4409,         D1
     TRAP    #15
     
-    LEA     SPICY_MSG,      A1
+    LEA     SPICY_MSG,      A1              
     MOVE    #14,            D0
     TRAP    #15
     
@@ -747,7 +753,7 @@ DRAW_PLYR_DATA:
 
     ; Player Health Value
     MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$0900,         D1              ; Col 09, Row 01
+    MOVE.W  #$0900,         D1              ; Col 09, Row 00
     TRAP    #15                             ; Trap (Perform action)
     MOVE.B  #03,            D0              ; Display number at D1.L
     MOVE.L  PLAYER_HEALTH,  D1              ; Move Health to D1.L
@@ -1206,21 +1212,31 @@ DRAW_FINAL_SCENE:
     BSR     DRAW_MOON
     BSR     DRAW_PLYR_DATA
     	   
-    MOVE.B  #TC_CURSR_P,    D0                  ; Set Cursor Position
-    MOVE.W  #$0405,         D1                  ; Col 18, Row 09 (Roughly center)
+    MOVE.B  #TC_CURSR_P,        D0              ; Set Cursor Position
+    MOVE.W  #$0405,             D1              ; Col 04, Row 05 (Roughly center)
     TRAP    #15                                 ; Trap (Perform action)
         
-    LEA     WIN_MSG,        A1
-    MOVE    #13,            D0
+    LEA     WIN_MSG,            A1
+    MOVE    #13,                D0
     TRAP    #15
     
-    MOVE.B  #TC_CURSR_P,    D0                  ; Set Cursor Position
-    MOVE.W  #$0906,         D1                  ; Col 18, Row 09 (Roughly center)
+    MOVE.B  #TC_CURSR_P,        D0              ; Set Cursor Position
+    MOVE.W  #$0906,             D1              ; Col 09, Row 06 
     TRAP    #15                                 ; Trap (Perform action)
         
-    LEA     CONTINUE_MSG,        A1
-    MOVE    #13,            D0
+    LEA     CONTINUE_MSG,       A1
+    MOVE    #13,                D0
     TRAP    #15
+    
+    
+    MOVE.B  #TC_CURSR_P,        D0              ; Set Cursor Position
+    MOVE.W  #$0907,             D1              ; Col 09, Row 07 
+    TRAP    #15                                 ; Trap (Perform action)
+        
+    LEA     CONTINUE_MSG2,       A1
+    MOVE    #13,                D0
+    TRAP    #15
+
     
     ; Set Pixel Colors
     MOVE.L  #GREEN,             D1              ; Set Background color
@@ -1494,15 +1510,25 @@ COLLISION_FROG:
 	TRAP    #15                             ; Trap (Perform action)
 	   
     BSR     DRAW_FINAL_SCENE
-   
+    BSR     DECIDE_ENDLESS_MODE
     ; Enable back buffer
     MOVE.B  #94,        D0          
     TRAP    #15
     
-    MOVE.B  #TC_EXIT,   D0          ; Exit Code
-    TRAP    #15                     ; Trap (Perform action)
- 
-    SIMHALT
+    RTS
+    
+DECIDE_ENDLESS_MODE:
+    EOR.L   D0,             D0
+    MOVE    #4,             D0              ; Prompt for input
+    TRAP    #15
+    CMP.L   #01,            D1              ; If the number is 1, continue, else exit
+    BEQ     CONTINUE
+    BNE     EXIT
+CONTINUE:
+    RTS
+    
+
+    
 *-----------------------------------------------------------
 * Subroutine    : EXIT
 * Description   : Exit message and End Game
@@ -1588,7 +1614,8 @@ HARDMODE_MSG    DC.B    'Oh no! Acid rain has flooded worms to the top!!!',0    
 HARDMODE_MSG2   DC.B    'The worms might be useful... but the acid rain has made them ',0
 SPICY_MSG       DC.B    's p i c y',0
 WIN_MSG         DC.B    'Elated, Bento and Frogette jumped with joy as they met again',0
-CONTINUE_MSG    DC.B    'Would you like to continue with Endless Mode? y/n',0 
+CONTINUE_MSG    DC.B    'Would you like to continue with Endless Mode?',0
+CONTINUE_MSG2   DC.B    '1 - Continue | 2 Exit (Press <ENTER>)',0 
 
 EXIT_MSG        DC.B    'Exiting....', 0    ; Exit Message
 
@@ -1677,6 +1704,10 @@ VICTORY_WAV     DC.B    'sounds/victory.wav',0
 
 
     END    START                            ; last line of source
+
+
+
+
 
 
 
