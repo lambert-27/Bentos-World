@@ -585,7 +585,7 @@ SPAWN_WORM:
 *---------------------------------------
 ACTIVATE_HARD_MODE:
     BSR     PLAY_THUNDER
-    MOVE.B  #01,            (A2)       ;Set hardmode to true
+    MOVE.B  #TRUE,            (A2)       ;Set hardmode to true
     RTS
     
 *-----------------------------------------------------------
@@ -620,13 +620,17 @@ MOVE_FROGETTE:
 * Sets Frogette's flag to Active
 *---------------------------------------
 SET_FROGETTE:
-    MOVE.B  #01,                (A3)
+    MOVE.B  #TRUE,                (A3)
     RTS
+    
+UNSET_FROGETTE:
+    MOVE.B  #FALSE,                (A3) 
+    RTS   
 *---------------------------------------
 * Check to see if Frogette has spawned
 *---------------------------------------    
 CHECK_FROGETTE:
-    CMP.B   #00,                (A3)
+    CMP.B   #FALSE,                (A3)
     RTS
 
 *-----------------------------------------------------------
@@ -1714,6 +1718,7 @@ VICTORY_WAV     DC.B    'sounds/victory.wav',0
 
 
     END    START                            ; last line of source
+
 
 
 
