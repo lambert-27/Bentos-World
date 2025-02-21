@@ -4,14 +4,15 @@
 * Date       : 05/02/2025 - 28/02/2025
 * Description: Project 1 Assembly - Tiny World - BENTO'S WORLD
 *-----------------------------------------------------------
-;MOVE FLAGS TO POINTERS - 
-* FROGETTE FLAG
-* WORM FLAG (HARDMODE)
-* HARDMODE_MSG FLAG
-* ENDLESSMODE FLAG
+;A2 - Hard Mode Flag
+;A3 - Frogette Flag
+;A4 - Health Value
+;A5 - Score Value
 ;SOUNDS RETRIEVED FROM STREETS OF RAGE 1 AND 2 SFX
 ;https://www.sounds-resource.com/genesis_32x_scd/streetsofrage/sound/7357/
 ;https://www.sounds-resource.com/genesis_32x_scd/streetsrage2/sound/359/
+; KNOWN BUG; WHEN HIT FIRST BLOCK AFTER SURPASSING 1200 UPON COLLECTION OF WORM, GAME END SCREEN
+; NEED TO SORT THE HANDLING OF HIGH SCORE, WHEN YOU DIE AND GO BACK TO 0, COLLISIONS DONT ACCOUNT FOR HIGH SCORE UNTIL HARD MODE UNLOCKS AGAIN
     ORG    $1000
 START:                              ; first instruction of program
 
@@ -53,6 +54,9 @@ PLYR_DFLT_G EQU             01      ; Player Default Gravity
 
 GND_TRUE    EQU             01      ; Player on Ground True
 GND_FALSE   EQU             00      ; Player on Ground False
+
+TRUE        EQU             01
+FALSE       EQU             00
 
 RUN_INDEX   EQU             00      ; Player Run Sound Index  
 JMP_INDEX   EQU             01      ; Player Jump Sound Index  
@@ -116,7 +120,7 @@ WELCOME_SCREEN:
     TRAP    #15
 MISSION_DETAIL:
     ; Repaint Screen
-    MOVE.B  #TC_BCK_SCRN,            D0
+    MOVE.B  #TC_BCK_SCRN,   D0
     TRAP    #15
 
     ; Clear the screen
@@ -243,10 +247,15 @@ INITIALISE:
     BSR     THUNDER_LOAD            ; Load Thunder sound
     BSR     VICTORY_LOAD            ; Load victory sound
 
+    ; Initialise Flags
+    LEA     HARD_MODE_FLAG, A2
+    LEA     FROGETTE_FLAG,  A3
+    MOVE.B  #FALSE,         D1
+    MOVE.B  D1,             (A2)      ;Initialise hardmode to false
+    MOVE.B  D1,             (A3)      ;Initialise frogette to false
     
-    MOVE.B  #00,    HARD_MODE       ;Initialise hardmode to false
-    MOVE.B  #00,    FROGETTE_FLAG   ;Initialise frogette to false
-    MOVE.L  #00,    HIGHEST_SCORE   ;Initialise highest score to 0
+    ;Initialise High Score
+    MOVE.L  D1,      HIGHEST_SCORE   ;Initialise highest score to 0
     
     ; Screen Size
     MOVE.B  #TC_SCREEN,     D0      ; access screen information
@@ -256,7 +265,7 @@ INITIALISE:
     SWAP    D1                          ; Swap top and bottom word to retrive screen size
     MOVE.W  D1,             SCREEN_W    ; place screen width in memory location
 
-    ; Place the Player at the center of the screen
+    ; Initialise Player Pos (Place @ center of Screen)
     EOR.L   D1, D1                      - Ammended CLR (EOR = inverter) So, using D1 as the operand on itself flips the bits that are 1 to 0
     MOVE.W  SCREEN_W,       D1          ; Place Screen width in D1
     DIVU    #02,            D1          ; divide by 2 for center on X Axis
@@ -283,12 +292,14 @@ INITIALISE:
     ; Initialise Player Health to 100
     EOR.L   D1,             D1          - Ammended CLR
     MOVE.L  #100,           D1          ; Initialises health to 100
-    MOVE.L  D1,             PLAYER_HEALTH
+    LEA     PLAYER_HEALTH,  A4
+    MOVE.L  D1,             (A4)
 
     ; Initialise Player Score
     EOR.L   D1, D1                      - Ammended CLR
     MOVE.L  #00,            D1          ; Init Score 
-    MOVE.L  D1,             PLAYER_SCORE
+    LEA     PLAYER_SCORE,   A5
+    MOVE.L  D1,             (A5)
 
     ; Initialise Player Velocity
     EOR.L   D1,             D1          - Ammended CLR
@@ -555,8 +566,7 @@ UPDATE:
 * and begin a hardmode                
 *-----------------------------------------------------------
 CHECK_POINTS:
-    MOVE.L  PLAYER_SCORE,   D1
-    CMP.L   #NEW_MODE,      D1          ; When player reaches x points, new mode unlocks
+    CMP.L   #NEW_MODE,      (A5)          ; When player reaches x points, new mode unlocks
     BGE     SPAWN_WORM             
     RTS
 SPAWN_WORM:
@@ -565,8 +575,8 @@ SPAWN_WORM:
     DIVU    #02,            D1          ;Gets exactly half the screen
     MOVE.L  D1,             WORM_Y      ;Worms have risen from the soil!
     
-    CMP.B   #00,        HARD_MODE       ;...unfortunately so to does hard_mode begin
-    BEQ     ACTIVATE_HARD_MODE
+    BSR     CHECK_HARD_MODE
+    BNE     ACTIVATE_HARD_MODE
     RTS
 *---------------------------------------
 * Sets hardmode flag to active, 
@@ -575,7 +585,7 @@ SPAWN_WORM:
 *---------------------------------------
 ACTIVATE_HARD_MODE:
     BSR     PLAY_THUNDER
-    ADD.B   #01,        HARD_MODE       ;Set hardmode to true
+    MOVE.B  #01,            (A2)       ;Set hardmode to true
     RTS
     
 *-----------------------------------------------------------
@@ -587,45 +597,44 @@ ACTIVATE_HARD_MODE:
 * Moral of the story, CPU and clock cycles matter greatly
 *-----------------------------------------------------------
 MOVE_ENTITY:
-    SUB.L   #ENTITY_SPD,        ENEMY_X     ; Move enemy by X Value
-    SUB.L   #ENTITY_SPD,        WORM_X
-    CMP.L   #SPAWN_FROGETTE,    PLAYER_SCORE ; When X value is met by players score, spawn his true love
+    EOR.L   D1,                 D1
+    MOVE.L  #ENTITY_SPD,        D1
+    SUB.L   D1,             ENEMY_X     ; Move enemy by X Value
+    SUB.L   D1,             WORM_X
+    CMP.L   #SPAWN_FROGETTE,    (A5) ; When X value is met by players score, spawn his true love
     BGE     MOVE_FROGETTE                   ; When Frogette spawns, she moves
     RTS
 *---------------------------------------
 * Move Frogette
 *---------------------------------------    
 MOVE_FROGETTE:
-    SUB.L   #ENTITY_SPD,        FROGETTE_X
+    EOR.L   D1,                 D1
+    MOVE.L  #ENTITY_SPD,        D1
+    SUB.L   D1,                 FROGETTE_X
     CMP.L   #00,                FROGETTE_X
     BLE     RESET_FROG_POSITION        ; Reset Enemy if off Screen
     BSR     CHECK_FROGETTE                  
-    BEQ     SET_FLAG
+    BEQ     SET_FROGETTE
     RTS
 *---------------------------------------
 * Sets Frogette's flag to Active
 *---------------------------------------
-SET_FLAG:
-    MOVE.B  #01,        FROGETTE_FLAG
+SET_FROGETTE:
+    MOVE.B  #01,                (A3)
     RTS
 *---------------------------------------
 * Check to see if Frogette has spawned
 *---------------------------------------    
 CHECK_FROGETTE:
-    CMP.B   #00,        FROGETTE_FLAG
+    CMP.B   #00,                (A3)
     RTS
-*---------------------------------------
-* Check if hardmode has begun
-*---------------------------------------
-CHECK_HARDMODE:
-    CMP.B   #00,        HARD_MODE
-    RTS
+
 *-----------------------------------------------------------
 * Subroutine    : Reset Enemy
 * Description   : Reset Enemy if to passes 0 to Right of Screen
 *-----------------------------------------------------------
 RESET_ENEMY_POSITION:
-    EOR.L   D1, D1                          - Ammended CLR
+    EOR.L   D1,             D1                          - Ammended CLR
     MOVE.W  SCREEN_W,       D1              ; Place Screen width in D1
     MOVE.L  D1,         ENEMY_X             ; Enemy X Position
     RTS
@@ -634,18 +643,18 @@ RESET_ENEMY_POSITION:
 * Description   : Reset Worm if it passes 0 to Right of Screen
 *-----------------------------------------------------------
 RESET_WORM_POSITION:
-    EOR.L   D1, D1
+    EOR.L   D1,             D1
     MOVE.W  SCREEN_W,       D1 
     ADD.L   #WRM_X_OFFSET,  D1              ; Add the offset so that worms appear infrequently
     MOVE.L  D1,         WORM_X
     RTS
     
 *-----------------------------------------------------------
-* Subroutine    : Reset Worm
-* Description   : Reset Worm if it passes 0 to Right of Screen
+* Subroutine    : Reset Frogette
+* Description   : Reset Frogette if it passes 0 to Right of Screen
 *-----------------------------------------------------------
 RESET_FROG_POSITION:
-    EOR.L   D1, D1
+    EOR.L   D1,             D1
     MOVE.W  SCREEN_W,       D1
     ADD.L   #SPAWN_FROGETTE,D1              ; Add an offset so player must wait for frogette to appear again
     MOVE.L  D1,     FROGETTE_X
@@ -669,20 +678,22 @@ DRAW:
     BSR     DRAW_FROGETTE
     BSR     DRAW_WORM                       ; Draw Worm
     BSR     DRAW_ENEMY                      ; Draw Enemy
+    BSR     DRAW_MOON 
     BSR     CHECK_HARD_MODE                 ; Check if hard mode flag is true
     BEQ     BEGIN_HARD_MODE                 ; If true, begin new mode
-    BSR     DRAW_MOON 
+
 
     RTS                                     ; Return to subroutine
 *-----------------------------------------------------------
 * Subroutine    : Draw Hard Mode
 * Description   : Draw Message displaying harad mode is  acative
 *-----------------------------------------------------------
-BEGIN_HARD_MODE:
+BEGIN_HARD_MODE:                                                                                ;;;;TO DO- SORT THIS OUT
     BSR     DRAW_RAIN
     BSR     CHECK_HARD_MODE
-
+    BEQ     DRAW_HARD_MODE
 DRAW_HARD_MODE:
+    EOR.L   D1,             D1   
     ; Set fill colour    
     MOVE.L  #CLEAR,         D1
     MOVE.B  #81,            D0
@@ -721,14 +732,13 @@ DRAW_HARD_MODE:
     TRAP    #15                             ; Trap (Perform action)
     
     ;DODGY WAY OF HANDLING REMOVING THE HARDMODE MESSAGE AFTER A WHILE
-    CMP.L   #700,      PLAYER_SCORE
+    CMP.L   #700,      (A5)
     BGE     DRAW_RAIN
     
     RTS
     
 CHECK_HARD_MODE:
-    MOVE.B  HARD_MODE,      D1             
-    CMP.B   #01,            D1    
+    CMP.B   #TRUE,          (A2)
     RTS
 
 *-----------------------------------------------------------
@@ -756,7 +766,7 @@ DRAW_PLYR_DATA:
     MOVE.W  #$0900,         D1              ; Col 09, Row 00
     TRAP    #15                             ; Trap (Perform action)
     MOVE.B  #03,            D0              ; Display number at D1.L
-    MOVE.L  PLAYER_HEALTH,  D1              ; Move Health to D1.L
+    MOVE.L  (A4),           D1              ; Move Health to D1.L
     TRAP    #15                             ; Trap (Perform action)
     
     ; Player Score Message
@@ -772,7 +782,7 @@ DRAW_PLYR_DATA:
     MOVE.W  #$1001,         D1              ; Col 10, Row 01
     TRAP    #15                             ; Trap (Perform action)
     MOVE.B  #03,            D0              ; Display number at D1.L
-    MOVE.L  PLAYER_SCORE,   D1              ; Move Score to D1.L
+    MOVE.L  (A5),           D1              ; Move Score to D1.L
     TRAP    #15                             ; Trap (Perform action)
     
     ; CM message
@@ -865,23 +875,19 @@ JUMP_DONE:
 ;value in ENMY_DMG to subtract.
 *----------------------------------------------------------- 
 DAMAGE:
-    EOR.L   D1,             D1              ;Clear contents of D1
-    MOVE.L  PLAYER_HEALTH,  D1              ;Move players health into D1 for an arithmetic operation
-    SUB.L   #ENMY_DMG,      D1              ;Subtract the constant ENMY_DMG from D1
-    CMP.L   #00,            D1              ;Check if the player has ran out of health
+    SUB.L   #ENMY_DMG,      (A4)            ;Subtract the constant ENMY_DMG from D1
+    CMP.L   #00,            (A4)            ;Check if the player has ran out of health
     BLE     EXIT                            ;If so, end game
-    MOVE.L  D1,     PLAYER_HEALTH           ;Move the new health value to PLAYER_HEALTH
+
     BRA     RESET_ENEMY_POSITION           
 
     RTS                                     ;Else if, return to sender
     
 DAMAGE_WORM:
-    EOR.L   D1,             D1              ;Clear contents of D1
-    MOVE.L  PLAYER_HEALTH,  D1              ;Move players health into D1 for an arithmetic operation
-    SUB.L   #05,            D1              ;Subtract the constant ENMY_DMG from D1
-    CMP.L   #00,            D1              ;Check if the player has ran out of health
-    BLE     EXIT                            ;If so, end game
-    MOVE.L  D1,     PLAYER_HEALTH           ;Move the new health value to PLAYER_HEALTH       
+    SUB.L   #05,            (A4)            ;Subtract the constant ENMY_DMG from D1
+    CMP.L   #00,            (A4)            ;Check if the player has ran out of health
+    BLE     EXIT                            ;iF SO, end game
+   
 
     RTS                                     ;Else if, return to sender
     
@@ -994,6 +1000,7 @@ PLAY_VICTORY:
 * Description   : Draw Player Square
 *-----------------------------------------------------------
 DRAW_PLAYER:
+    EOR.L   D1,             D1
     ; Set Pixel Colors
     MOVE.L  #GREEN,         D1              ; Set Background color
     MOVE.B  #80,            D0              ; Task for Background Color
@@ -1016,7 +1023,8 @@ DRAW_PLAYER:
     MOVE.B  #87,            D0              ; Draw Player
     TRAP    #15                             ; Trap (Perform action)
     RTS                                     ; Return to subroutine
-DRAW_FROGETTE
+DRAW_FROGETTE:
+    EOR.L   D1,             D1
     ; Set Pixel Colors
     MOVE.L  #FUCHSIA,       D1              ; Set Background color
     MOVE.B  #80,            D0              ; Task for Background Color
@@ -1029,7 +1037,7 @@ DRAW_FROGETTE
     MOVE.L  FROGETTE_X,       D1              ; X
     MOVE.L  FROGETTE_Y,       D2              ; Y
     MOVE.L  FROGETTE_X,       D3
-    ADD.L   #FRG_W_INIT,   D3              ; Width
+    ADD.L   #FRG_W_INIT,    D3              ; Width
     MOVE.L  FROGETTE_Y,       D4 
     ADD.L   #FRG_H_INIT,   D4              ; Height
     
@@ -1042,6 +1050,7 @@ DRAW_FROGETTE
 * Description   : Draw Enemy Square
 *-----------------------------------------------------------
 DRAW_ENEMY:
+    EOR.L   D1,             D1
     ; Set Pixel Colors
     MOVE.L  #RED,           D1              ; Set Background color
     MOVE.B  #80,            D0              ; Task for Background Color
@@ -1064,6 +1073,7 @@ DRAW_ENEMY:
     RTS                                     ; Return to subroutine
     
 DRAW_WORM:
+    EOR.L   D1,             D1
     ; Set Pixel Colors
     MOVE.L  #GOLD,          D1              ; Set Background color
     MOVE.B  #80,            D0              ; Task for Background Color
@@ -1086,6 +1096,7 @@ DRAW_WORM:
     RTS                                     ; Return to subroutine
     
 DRAW_PLATFORM:
+    EOR.L   D1,             D1
     ; Set Pixel Colors
     MOVE.L  #GREEN,         D1              ; Set Background color
     MOVE.B  #80,            D0              ; Task for Background Color
@@ -1113,6 +1124,7 @@ DRAW_PLATFORM:
     RTS                                     ; Return to subroutine 
     
 DRAW_RAIN:
+    EOR.L   D1,             D1
     ; Set fill colour    
     MOVE.L  #CLEAR,         D1
     MOVE.B  #81,            D0
@@ -1159,12 +1171,10 @@ DRAW_RAIN:
     MOVE    #13,            D0              ; No Line feed
     TRAP    #15                             ; Trap (Perform action)
       
-    ;DRAW MOON ONTOP OF RAIN   
-    BSR     DRAW_MOON
-    RTS
-    
+    RTS   
     
 DRAW_MOON:
+    EOR.L   D1,             D1
     ; Set fill colour    
     MOVE.L  #CLEAR,         D1
     MOVE.B  #81,            D0
@@ -1207,7 +1217,8 @@ DRAW_MOON:
 *-----------------------------------------------------------------------  
 ;Subroutine to Draw a Nice Final Scene when Player reaches objective    
 *-----------------------------------------------------------------------  
-DRAW_FINAL_SCENE:  
+DRAW_FINAL_SCENE:
+    EOR.L   D1,             D1  
     BSR     DRAW_PLATFORM
     BSR     DRAW_MOON
     BSR     DRAW_PLYR_DATA
@@ -1363,8 +1374,8 @@ PLAYER_X_LTE_TO_ENEMY_X_PLUS_W:
     ADD.L   ENMY_W_INIT,    D2              ; Set Enemy width X + Width
     CMP.L   D1,             D2              ; Do the Overlap ?
     BLE     PLAYER_X_PLUS_W_LTE_TO_ENEMY_X  ; If they do, check the next side
-    BSR     CHECK_HARDMODE                  ; Check if hardmode is active, 
-    BNE     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If hardmode ISN'T 0 (meaning it's active), then we need to check for worm collisions (note to check, I branched to the PAUSE subroutine, when enemy spawns, game should pause)
+    BSR     CHECK_HARD_MODE                  ; Check if hardmode is active, 
+    BEQ     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If hardmode IS ACTIVE, then we need to check for worm collisions (note to check, I branched to the PAUSE subroutine, when enemy spawns, game should pause)
     BRA     COLLISION_CHECK_DONE            ; Otherwise, there's no need to have worm collisions taking up cycles
     
 PLAYER_X_PLUS_W_LTE_TO_ENEMY_X:              
@@ -1372,8 +1383,8 @@ PLAYER_X_PLUS_W_LTE_TO_ENEMY_X:
     MOVE.L  ENEMY_X,        D2              ; Move Enemy X to D2
     CMP.L   D1,             D2              ; Do they OverLap ?
     BGE     PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H  
-    BSR     CHECK_HARDMODE                  ; Check for hardmode
-    BNE     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If active, check for worms  
+    BSR     CHECK_HARD_MODE                  ; Check for hardmode
+    BEQ     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If active, check for worms  
     BRA     COLLISION_CHECK_DONE            ; Otherwise, collision check done
 PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H:     
     MOVE.L  PLAYER_Y,       D1              ; Move Player Y to D1
@@ -1381,8 +1392,8 @@ PLAYER_Y_LTE_TO_ENEMY_Y_PLUS_H:
     ADD.L   ENMY_H_INIT,    D2              ; Set Enemy Height to D2
     CMP.L   D1,             D2              ; Do they Overlap ?
     BLE     PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y  
-    BSR     CHECK_HARDMODE                  ; Check for hardmode
-    BNE     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If active, check for worms 
+    BSR     CHECK_HARD_MODE                  ; Check for hardmode
+    BEQ     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If active, check for worms 
     BRA     COLLISION_CHECK_DONE            ; Otherwise, collision check done
     
 PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y:             
@@ -1390,8 +1401,8 @@ PLAYER_Y_PLUS_H_LTE_TO_ENEMY_Y:
     MOVE.L  ENEMY_Y,        D2              ; Move Enemy Height to D2  
     CMP.L   D1,             D2              ; Do they OverLap ?
     BGE     COLLISION                       ; Collision !
-    BSR     CHECK_HARDMODE                  ; Check hardmode
-    BNE     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If active, check for worms
+    BSR     CHECK_HARD_MODE                  ; Check hardmode
+    BEQ     PLAYER_X_LTE_TO_WORM_X_PLUS_W   ; If active, check for worms
     BRA     COLLISION_CHECK_DONE            ; Otherwise, we good
 *-----------------------------------------------------------
 * Subroutine    : Collision for Worms
@@ -1475,7 +1486,7 @@ COLLISION_CHECK_DONE:                       ; No Collision Update points
     BRA     END_COLLISION
     
 INCREMENT_POINTS:
-    ADD.L   #POINTS,    PLAYER_SCORE        ; Move points upgrade to D1   
+    ADD.L   #POINTS,        (A5)        ; Move points upgrade to D1   
     RTS
 ;Returns to the calling subroutine
 END_COLLISION:
@@ -1488,17 +1499,15 @@ END_COLLISION:
 COLLISION:
     BSR     PLAY_HIT                        ; Play Hit Wav
     BSR     DAMAGE                          ; Deduct damage from health
-    MOVE.L  PLAYER_SCORE,   HIGHEST_SCORE
-    MOVE.L  #00,        PLAYER_SCORE        ; Reset Player Score
+    MOVE.L  (A5),       HIGHEST_SCORE
+    MOVE.L  #00,        (A5)                ; Reset Player Score
     BRA     RESET_ENEMY_POSITION            ; Sets next Enemeies position back to 0, simulating a game restart for this life.
-    CMP.L   #00,        PLAYER_HEALTH
-    BLE     EXIT
     RTS                                     ; Return to subroutine
 
 COLLISION_WORM:
     BSR     PLAY_WORM                       ; Play Worm Wav
     BSR     DAMAGE_WORM
-    ADD.L   #640,       PLAYER_SCORE        ; Add points to score
+    ADD.L   #640,       (A5)        ; Add points to score
     BRA     RESET_WORM_POSITION             ; Sets next Enemeies position back to 0, simulating a game restart for this life.
     
     RTS      
@@ -1525,6 +1534,7 @@ DECIDE_ENDLESS_MODE:
     BEQ     CONTINUE
     BNE     EXIT
 CONTINUE:
+    MOVE.L  #1000,      FROGETTE_Y          ; Frogette no long appears now (Fake despawn)
     RTS
     
 
@@ -1683,7 +1693,7 @@ PLYR_EYE_2_X     DS.L   01
 PLYR_EYE_2_Y     DS.L   01
 
 
-HARD_MODE       DS.B    01  ; Reserve Space for Hard_Mode flag
+HARD_MODE_FLAG  DS.B    01  ; Reserve Space for Hard_Mode flag
 FROGETTE_FLAG   DS.B    01  ; Flag used to determine if Frogette has spawned yet
 
 HIGHEST_SCORE   DS.L    01  ; Most recent score is placed here
@@ -1704,6 +1714,8 @@ VICTORY_WAV     DC.B    'sounds/victory.wav',0
 
 
     END    START                            ; last line of source
+
+
 
 
 
