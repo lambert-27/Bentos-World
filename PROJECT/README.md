@@ -1,6 +1,6 @@
-# Bento's World#
+# Bento's World
 
-A starter kit for building "Small World" themed games using Easy68K assembly for [Games Fleadh 2025](https://gamesfleadh.ie/).
+Built upon a starter kit for building "Small World" themed games using Easy68K assembly for [Games Fleadh 2025](https://gamesfleadh.ie/).
 
 ### About Bento's World ###
 
