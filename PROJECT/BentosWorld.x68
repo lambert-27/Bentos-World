@@ -83,7 +83,7 @@ WRM_Y_OFFSET EQU            600     ; Hide worms initially
 
 ENTITY_SPD  EQU             05      ; Entity speed, alter depending on delta
 SMALL_SPD   EQU             08
-DELTA_AMT   EQU             6000    ; Delta amount
+DELTA_AMT   EQU             3000    ; Delta amount
 NEW_MODE    EQU             500     ; Amount to unlock the new mode
 SPAWN_FROGETTE EQU          1000    ; Amount to win!
 *-----------------------------------------------------------
@@ -847,21 +847,7 @@ DRAW_PLYR_DATA:
     MOVE    #13,            D0              ; No Line feed
     TRAP    #15                             ; Trap (Perform action)
         
-    ; Show Keys Pressed
-    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$2001,         D1              ; Col 20, Row 1
-    TRAP    #15                             ; Trap (Perform action)
-    LEA     KEYCODE_MSG,    A1              ; Keycode
-    MOVE    #13,            D0              ; No Line feed
-    TRAP    #15                             ; Trap (Perform action)
-
-    ; Show KeyCode
-    MOVE.B  #TC_CURSR_P,    D0              ; Set Cursor Position
-    MOVE.W  #$3001,         D1              ; Col 30, Row 1
-    TRAP    #15                             ; Trap (Perform action)    
-    MOVE.L  CURRENT_KEY,    D1              ; Move Key Pressed to D1
-    MOVE.B  #03,            D0              ; Display the contents of D1
-    TRAP    #15                             ; Trap (Perform action)
+   
 
     
 *-----------------------------------------------------------
@@ -1856,6 +1842,7 @@ VICTORY_WAV     DC.B    'sounds/victory.wav',0
 
 
     END    START                            ; last line of source
+
 
 
 
