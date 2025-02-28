@@ -14,6 +14,7 @@
 ;https://www.sounds-resource.com/genesis_32x_scd/streetsrage2/sound/359/
 ; KNOWN BUG; WHEN HIT FIRST BLOCK AFTER SURPASSING 1200 UPON COLLECTION OF WORM, GAME END SCREEN
 ; NEED TO SORT THE HANDLING OF HIGH SCORE, WHEN YOU DIE AND GO BACK TO 0, COLLISIONS DONT ACCOUNT FOR HIGH SCORE UNTIL HARD MODE UNLOCKS AGAIN
+; Final SMALL ENEMY that spawns when in Endless Mode does not collide with the player
     ORG    $1000
 START:                              ; first instruction of program
 
@@ -83,7 +84,7 @@ WRM_Y_OFFSET EQU            600     ; Hide worms initially
 
 ENTITY_SPD  EQU             05      ; Entity speed, alter depending on delta
 SMALL_SPD   EQU             08
-DELTA_AMT   EQU             3000    ; Delta amount
+DELTA_AMT   EQU             6000    ; Delta amount
 NEW_MODE    EQU             500     ; Amount to unlock the new mode
 SPAWN_FROGETTE EQU          1000    ; Amount to win!
 *-----------------------------------------------------------
@@ -1842,6 +1843,9 @@ VICTORY_WAV     DC.B    'sounds/victory.wav',0
 
 
     END    START                            ; last line of source
+
+
+
 
 
 
